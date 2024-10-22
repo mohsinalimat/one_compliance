@@ -265,7 +265,7 @@ fixtures = [
         'dt': 'Workflow State',
         'filters': [['name', 'in', ['Draft','Approved','Rejected','Pending','Sent to Customer','Customer Approval Waiting','Customer Approved',
                                     'Customer Rejected','Cancelled','Verified','Tax Invoice','Proforma Invoice', 'Closed', 'In Progress',
-                                    'Pre-Invoice', 'Partially Paid', 'Paid', 'Invoiced']]]
+                                    'Pre-Invoice', 'Partially Paid', 'Paid', 'Invoiced', 'Completed']]]
     },
     {
         'dt': 'Workflow',
