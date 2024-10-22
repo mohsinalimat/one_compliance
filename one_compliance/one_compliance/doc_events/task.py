@@ -51,8 +51,8 @@ def task_on_update(doc, method):
 			if frappe.db.exists('Project', doc.project):
 				project = frappe.get_doc ('Project', doc.project)
 				if project.status == 'Completed':
-					if project.sales_order:
-						create_project_completion_todos(project.sales_order, project.project_name)
+					if not frappe.db.get_value("Sales Order", project.sales_order, "custom_is_rework"):
+						create_project_completion_todos(project.sales_order, project.name)
 					# send_project_completion_mail = frappe.db.get_value('Customer', project.customer, 'send_project_completion_mail')
 					# if send_project_completion_mail:
 					# 	email_id = frappe.db.get_value('Customer', project.customer, 'email_id')
@@ -132,7 +132,10 @@ def make_sales_invoice(doc, method):
 						if sales_order:
 							sales_order_status = frappe.db.get_value("Sales Order", sales_order, "workflow_state")
 							if sales_order_status == "In Progress":
-								frappe.db.set_value("Sales Order", sales_order, "workflow_state", "Proforma Invoice")
+								if frappe.db.get_value("Sales Order", sales_order, "custom_is_rework"):
+									frappe.db.set_value("Sales Order", sales_order, "workflow_state", "Completed")
+								else:
+									frappe.db.set_value("Sales Order", sales_order, "workflow_state", "Proforma Invoice")
 							elif sales_order_status == "Pre-Invoice":
 								frappe.db.set_value("Sales Order", sales_order, "workflow_state", "Invoiced")
 						else:
