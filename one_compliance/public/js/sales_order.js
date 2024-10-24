@@ -26,12 +26,14 @@ frappe.ui.form.on('Sales Order', {
         frm.remove_custom_button('Request for Raw Materials', 'Create');
         frm.remove_custom_button('Purchase Order', 'Create');
         frm.remove_custom_button('Project', 'Create');
-        if (frappe.user_roles.incudes("Accounts User") || frappe.user_roles.incudes("Accounts Manager")) {
+        if (frappe.user_roles.includes("Accounts User") || frappe.user_roles.includes("Accounts Manager")) {
           frm.remove_custom_button('Payment', 'Create');
         }
         }, 500);
 
         handle_unlinking(frm);
+
+        handle_rework_order(frm);
     }
 });
 
@@ -239,5 +241,16 @@ function handle_unlinking(frm) {
           });
         }
       });
+  }
+}
+
+function handle_rework_order(frm) {
+  // If the sales order is a rework order, remove buttons to create payments or invoice
+  if (frm.doc.custom_is_rework) {
+    setTimeout(() => {
+      frm.remove_custom_button("Payment", "Create");
+      frm.remove_custom_button("Sales Invoice", "Create");
+      frm.remove_custom_button("Payment Request", "Create");
+    }, 500);
   }
 }
