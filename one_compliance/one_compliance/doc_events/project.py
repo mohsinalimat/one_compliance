@@ -12,8 +12,10 @@ from frappe.desk.form.assign_to import add as add_assign
 
 @frappe.whitelist()
 def project_on_update(doc, method):
+	is_not_rework = doc.sales_order and not frappe.db.get_value("Sales Order", doc.sales_order, "custom_is_rework")
+
 	if doc.status == 'Completed':
-		if doc.sales_order:
+		if is_not_rework:
 			create_project_completion_todos(doc.sales_order, doc.project_name)
 
 		send_project_completion_mail = frappe.db.get_value('Customer', doc.customer, 'send_project_completion_mail')
@@ -21,7 +23,8 @@ def project_on_update(doc, method):
 			email_id = frappe.db.get_value('Customer', doc.customer, 'email_id')
 			if email_id:
 				project_complete_notification_for_customer(doc, email_id)
-	if doc.sales_order:
+
+	if is_not_rework:
 		update_sales_order_billing_instruction(doc.sales_order, doc.custom_billing_instruction)
 		
 def update_sales_order_billing_instruction(sales_order, custom_billing_instruction):
