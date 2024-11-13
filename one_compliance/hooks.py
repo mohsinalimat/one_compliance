@@ -76,7 +76,9 @@ doctype_js = {
 # ------------
 
 # before_install = "one_compliance.install.before_install"
-# after_install = "one_compliance.install.after_install"
+after_install = "one_compliance.install.after_install"
+
+after_migrate = "one_compliance.setup.after_migrate"
 
 # Uninstallation
 # ------------
@@ -291,10 +293,6 @@ fixtures = [
     {
         'dt': 'Web Page',
         'filters': [['name', 'in', ['customer-credentials', 'project-status', 'agreement-approval', 'login-page', 'customer-documents']]]
-    },
-    {
-        'dt': 'Custom DocPerm',
-        'filters':[['parent', 'in',['Lead','Oppotunity','Customer','Customer Type','Compliance Category','Compliance Sub Category','Project','Project Template','Compliance Agreement','Inward Register','Outward Register','Compliance Settings','Notification Template','Purpose','Customer Credentials','Credential Type','Customer Document','Employee','Employee Group','Digital Signature','Department','Task','Compliance Category Details','Compliance Executive','Register Type Detail','Compliance Task Assignment','Credential Details','Digital Signature Details','Compliance Task Detail','Staff Assignment','Customer Document Record','Customer Contacts','General Register Type','Document Register Type','General Register Type List','Compliance Category List','Contact','Payment Terms Template','Address','Project Type','Category Type']]]
     },
     {
         'dt': 'Role Profile'
