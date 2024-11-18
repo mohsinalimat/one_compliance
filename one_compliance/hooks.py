@@ -78,7 +78,11 @@ doctype_js = {
 # before_install = "one_compliance.install.before_install"
 after_install = "one_compliance.install.after_install"
 
+before_uninstall = "one_compliance.install.before_uninstall"
+
 after_migrate = "one_compliance.setup.after_migrate"
+
+before_migrate = "one_compliance.setup.before_migrate"
 
 # Uninstallation
 # ------------

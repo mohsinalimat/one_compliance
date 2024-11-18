@@ -2,11 +2,18 @@
 # For license information, please see license.txt
 
 import frappe
-from one_compliance.setup import create_custom_fields_for_app, create_property_setters, create_fixtures
+from one_compliance.setup import (
+    create_custom_fields_for_app,
+    create_property_setters,
+    create_fixtures,
+    delete_custom_fields_for_app,
+)
+
 
 def insert_doc(doc_list):
     for doc in doc_list:
         frappe.get_doc(doc).insert(ignore_permissions=True)
+
 
 def after_install():
     create_compliance_service_item_group()
@@ -16,9 +23,12 @@ def after_install():
     create_fixtures()
 
 
+def before_uninstall():
+    delete_custom_fields_for_app()
+
+
 def create_compliance_service_item_group():
-    """method adds an item group for use in one compliance
-    """
+    """method adds an item group for use in one compliance"""
     if not frappe.db.exists("Item Group", "Compliance Services"):
         compliance_service_item_group_doc = frappe.new_doc("Item Group")
         compliance_service_item_group_doc.item_group_name = "Compliance Services"
@@ -26,8 +36,7 @@ def create_compliance_service_item_group():
 
 
 def create_custom_docperms():
-    """method creates the default role permissions required for the app
-    """
+    """method creates the default role permissions required for the app"""
     perms_list = [
         {
             "amend": 0,
