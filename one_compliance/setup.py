@@ -54,6 +54,7 @@ def create_fixtures():
     insert_doc(get_web_page_fixtures())
     insert_doc(get_workflow_state_fixtures())
     insert_doc(get_workflow_action_master_fixtures())
+    insert_doc(get_workflow_fixtures())
     insert_doc(get_web_page_fixtures())
     insert_doc(get_designation_fixtures())
     insert_doc(get_role_profile_fixtures())
