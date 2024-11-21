@@ -488,8 +488,8 @@ def create_sales_order(project, rate, sub_category_doc, payment_terms=None, subm
 		'description' : project.custom_project_service
 	})
 	new_sales_order.insert(ignore_permissions=True, ignore_mandatory=True)
-	project.sales_order = new_sales_order.name
 	new_sales_order.submit()
+	frappe.db.set_value("Project", project.name, "sales_order", new_sales_order.name)
 	frappe.msgprint("Sales Order {0} Created against {1}".format(new_sales_order.name, project.name), alert=True)
 
 @frappe.whitelist()
