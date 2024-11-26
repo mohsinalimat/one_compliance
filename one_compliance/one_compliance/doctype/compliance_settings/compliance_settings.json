@@ -20,8 +20,11 @@
   "default_invoice_due_day",
   "column_break_gnzz",
   "customer_type",
-  "task_template_series",
   "default_tds_account",
+  "task_settings_section",
+  "task_template_series",
+  "column_break_kqmy",
+  "ignore_dependent_task_validation",
   "tab_break_us4n3",
   "task_before_due_date_notification",
   "task_overdue_notification_for_employee",
@@ -249,7 +252,7 @@
   {
    "fieldname": "default_tds_account",
    "fieldtype": "Link",
-   "label": "Default Tds Account",
+   "label": "Default TDS Account",
    "options": "Account"
   },
   {
@@ -257,12 +260,27 @@
    "fieldtype": "Link",
    "label": "Role Allowed to Unlink and Delete Sales Orders",
    "options": "Role"
+  },
+  {
+   "fieldname": "task_settings_section",
+   "fieldtype": "Section Break",
+   "label": "Task Settings"
+  },
+  {
+   "fieldname": "column_break_kqmy",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "ignore_dependent_task_validation",
+   "fieldtype": "Check",
+   "label": "Complete Dependent Tasks On Task Completion"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-10-16 12:17:17.395229",
+ "modified": "2024-11-21 11:03:54.257737",
  "modified_by": "Administrator",
  "module": "One Compliance",
  "name": "Compliance Settings",
