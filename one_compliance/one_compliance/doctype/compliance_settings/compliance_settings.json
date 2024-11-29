@@ -125,7 +125,6 @@
    "label": "Notification Settings"
   },
   {
-   "default": "Services",
    "fieldname": "compliance_service_item_group",
    "fieldtype": "Link",
    "label": "Compliance Service Item Group",
