@@ -8,9 +8,11 @@
  "field_order": [
   "filters_section",
   "department",
+  "category",
   "sub_category",
   "column_break_lwccr",
-  "category",
+  "assignment_based_on",
+  "project",
   "assigned_to",
   "status",
   "task_reassigns_section",
@@ -81,13 +83,27 @@
    "fieldtype": "Select",
    "label": "Status",
    "options": "Open\nWorking\nInvoiced\nPaid\nHold\nOverdue\nCompleted\nCancelled"
+  },
+  {
+   "default": "Task",
+   "fieldname": "assignment_based_on",
+   "fieldtype": "Select",
+   "label": "Assignment Based On",
+   "options": "Task\nProject"
+  },
+  {
+   "depends_on": "eval: doc.assignment_based_on == \"Project\";",
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project"
   }
  ],
  "hide_toolbar": 1,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-07-17 15:09:28.359223",
+ "modified": "2024-11-26 14:23:44.159595",
  "modified_by": "Administrator",
  "module": "One Compliance",
  "name": "Task Bulk Assignment",
