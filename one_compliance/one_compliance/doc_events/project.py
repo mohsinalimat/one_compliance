@@ -130,7 +130,3 @@ def get_permission_query_conditions(user):
 		return conditions
 	else:
 		return None
-
-def before_save(doc, method):
-    if doc.edit_expected_end_date and doc.expected_end_date:
-        doc.edit_expected_end_date = 0
