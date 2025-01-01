@@ -2,9 +2,11 @@
 # For license information, please see license.txt
 
 import frappe
+from datetime import datetime
 from frappe.model.document import Document
 from frappe.model.mapper import *
 from frappe import _
+from frappe.utils import getdate, add_months, today, add_days
 
 class ComplianceSubCategory(Document):
 	def validate(self):
@@ -112,9 +114,9 @@ def create_compliance_item_from_sub_category(doc, sub_category, rate):
 		for account in doc.default_account:
 			compliance_item.append("item_defaults", {
 				"company":account.company,
-                "income_account": account.default_income_account,
+				"income_account": account.default_income_account,
 				"default_warehouse": ''
-            })
+			})
 		compliance_item.flags.ignore_mandatory = True
 		compliance_item.save(ignore_permissions=True)
 		make_item_price(sub_category,rate)
@@ -126,18 +128,18 @@ def create_compliance_item_from_sub_category(doc, sub_category, rate):
 
 @frappe.whitelist()
 def make_item_price(sub_category, rate):
-    price_list_name = frappe.db.get_value(
-        "Selling Settings", None, "selling_price_list"
-    ) or frappe.db.get_value("Price List", {"selling": 1})
-    frappe.get_doc(
-        {
-            "doctype": "Item Price",
-            "price_list": price_list_name,
-            "item_code": sub_category,
-            "price_list_rate": rate,
-            "valid_from": frappe.utils.today(),
-        }
-    ).insert(ignore_permissions=True, ignore_mandatory=True)
+	price_list_name = frappe.db.get_value(
+		"Selling Settings", None, "selling_price_list"
+	) or frappe.db.get_value("Price List", {"selling": 1})
+	frappe.get_doc(
+		{
+			"doctype": "Item Price",
+			"price_list": price_list_name,
+			"item_code": sub_category,
+			"price_list_rate": rate,
+			"valid_from": frappe.utils.today(),
+		}
+	).insert(ignore_permissions=True, ignore_mandatory=True)
 
 @frappe.whitelist()
 def disable_related_item(item_name):
@@ -176,15 +178,56 @@ def update_related_item_name(doc, old_sub_category, new_sub_category, compliance
 
 @frappe.whitelist()
 def rename_compliance_subcategory(old_sub_category, new_sub_category, compliance_category):
-    # Formulate the old and new doctype names
-    old_doctype_name = f"{compliance_category}-{old_sub_category}"
-    new_doctype_name = f"{compliance_category}-{new_sub_category}"
+	# Formulate the old and new doctype names
+	old_doctype_name = f"{compliance_category}-{old_sub_category}"
+	new_doctype_name = f"{compliance_category}-{new_sub_category}"
 
-    doc = frappe.get_all("Compliance Sub Category", filters={'name': old_doctype_name})
+	doc = frappe.get_all("Compliance Sub Category", filters={'name': old_doctype_name})
 
-    if doc:
-        # Update the found document's subcategory field and name
-        frappe.db.set_value('Compliance Sub Category', doc[0].name, 'sub_category', new_sub_category)
-        frappe.rename_doc('Compliance Sub Category', doc[0].name, new_doctype_name, force=True)
+	if doc:
+		# Update the found document's subcategory field and name
+		frappe.db.set_value('Compliance Sub Category', doc[0].name, 'sub_category', new_sub_category)
+		frappe.rename_doc('Compliance Sub Category', doc[0].name, new_doctype_name, force=True)
 
-        frappe.msgprint("Compliance Subcategory Doctype Name Updated: {} -> {}".format(old_doctype_name, new_doctype_name), indicator="blue", alert=1)
+		frappe.msgprint("Compliance Subcategory Doctype Name Updated: {} -> {}".format(old_doctype_name, new_doctype_name), indicator="blue", alert=1)
+
+def send_repeat_notif():
+	"""method sends repeat notifications for compliance sub categories
+	"""
+	months_dict = { 'January': 1, 'February': 2, 'March': 3, 'April': 4, 'May': 5, 'June': 6, 'July': 7, 'August': 8, 'September': 9, 'October': 10, 'November': 11, 'December': 12 }
+	sub_category_with_notifs = frappe.db.get_all("Compliance Sub Category", {"enabled":1, "renew_notif":1}, pluck="name")
+	for sub_category in sub_category_with_notifs:
+		sub_category_doc = frappe.get_doc("Compliance Sub Category", sub_category)
+		current_date = getdate(today())
+		day = sub_category_doc.day
+		if sub_category_doc.repeat_on == "Monthly":
+			new_date = datetime(current_date.year, current_date.month, day).strftime('%Y-%m-%d')
+			compliance_date = getdate(new_date)
+			if compliance_date < current_date:
+				compliance_date = add_months(compliance_date, 1)
+		else:
+			if sub_category_doc.repeat_on == "Quarterly":
+				month_flag = 3
+			elif sub_category_doc.repeat_on == "Half Yearly":
+				month_flag = 6
+			elif sub_category_doc.repeat_on == "Yearly":
+				month_flag = 12
+			month = months_dict[sub_category_doc.month]
+			new_date = datetime(current_date.year, month, day).strftime('%Y-%m-%d')
+			compliance_date = getdate(new_date)
+			if compliance_date < current_date:
+				compliance_date = add_months(compliance_date, month_flag)
+		notification_date = add_days(compliance_date, -10)
+		projects_to_notify = frappe.db.get_all("Project", {"status":"Completed", "expected_end_date":["<", notification_date], "renew_email_sent_on":["is", "not set"], "compliance_sub_category":sub_category}, pluck="name")
+		recipients = []
+		for project in projects_to_notify:
+			customer = frappe.db.get_value("Project", project, "customer")
+			customer_contact = frappe.db.get_value("Dynamic Link", {"parenttype":"Contact", "link_doctype":"Customer", "link_name":customer}, "parent")
+			customer_email = frappe.db.get_value("Contact", customer_contact, "email_id")
+			if customer_email and customer_email not in recipients:
+				recipients.append(customer_email)
+		if frappe.db.exists("Email Template", sub_category_doc.renew_notification_for_customer):
+			email_template_doc = frappe.get_doc("Email Template", sub_category_doc.renew_notification_for_customer)
+			frappe.sendmail(recipients, subject=email_template_doc.subject, message=email_template_doc.response)
+			for project in projects_to_notify:
+				frappe.db.set_value("Project", project, "renew_email_sent_on", today())
