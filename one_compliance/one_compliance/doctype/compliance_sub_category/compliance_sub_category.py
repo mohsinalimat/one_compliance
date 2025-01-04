@@ -7,6 +7,7 @@ from frappe.model.document import Document
 from frappe.model.mapper import *
 from frappe import _
 from frappe.utils import getdate, add_months, today, add_days
+from frappe.email.doctype.notification.notification import get_context
 
 class ComplianceSubCategory(Document):
 	def validate(self):
@@ -191,43 +192,120 @@ def rename_compliance_subcategory(old_sub_category, new_sub_category, compliance
 
 		frappe.msgprint("Compliance Subcategory Doctype Name Updated: {} -> {}".format(old_doctype_name, new_doctype_name), indicator="blue", alert=1)
 
+
 def send_repeat_notif():
-	"""method sends repeat notifications for compliance sub categories
-	"""
-	months_dict = { 'January': 1, 'February': 2, 'March': 3, 'April': 4, 'May': 5, 'June': 6, 'July': 7, 'August': 8, 'September': 9, 'October': 10, 'November': 11, 'December': 12 }
-	sub_category_with_notifs = frappe.db.get_all("Compliance Sub Category", {"enabled":1, "renew_notif":1}, pluck="name")
-	for sub_category in sub_category_with_notifs:
+	"""Method sends repeat notifications for compliance subcategories."""
+	months_dict = {
+		"January": 1,
+		"February": 2,
+		"March": 3,
+		"April": 4,
+		"May": 5,
+		"June": 6,
+		"July": 7,
+		"August": 8,
+		"September": 9,
+		"October": 10,
+		"November": 11,
+		"December": 12,
+	}
+
+	sub_categories = frappe.db.get_all(
+		"Compliance Sub Category",
+		filters={"enabled": 1, "renew_notif": 1},
+		pluck="name",
+	)
+
+	for sub_category in sub_categories:
 		sub_category_doc = frappe.get_doc("Compliance Sub Category", sub_category)
 		current_date = getdate(today())
 		day = sub_category_doc.day
+		compliance_date = calculate_compliance_date(
+			sub_category_doc, current_date, day, months_dict
+		)
+
+		if not compliance_date:
+			continue
+
+		notification_date = add_days(
+			compliance_date, -sub_category_doc.renew_notif_days_before
+		)
+
+		if current_date < notification_date:
+			continue
+
+		projects_to_notify = frappe.db.get_all(
+			"Project",
+			filters={
+				"status": "Completed",
+				"expected_end_date": ["<", notification_date],
+				"renew_email_sent_on": ["is", "not set"],
+				"compliance_sub_category": sub_category,
+			},
+			pluck="name",
+		)
+
+		send_notification_email(projects_to_notify, sub_category_doc)
+
+
+def calculate_compliance_date(sub_category_doc, current_date, day, months_dict):
+	"""Calculate the next compliance date."""
+	try:
 		if sub_category_doc.repeat_on == "Monthly":
-			new_date = datetime(current_date.year, current_date.month, day).strftime('%Y-%m-%d')
-			compliance_date = getdate(new_date)
+			compliance_date = datetime(current_date.year, current_date.month, day)
 			if compliance_date < current_date:
 				compliance_date = add_months(compliance_date, 1)
 		else:
-			if sub_category_doc.repeat_on == "Quarterly":
-				month_flag = 3
-			elif sub_category_doc.repeat_on == "Half Yearly":
-				month_flag = 6
-			elif sub_category_doc.repeat_on == "Yearly":
-				month_flag = 12
-			month = months_dict[sub_category_doc.month]
-			new_date = datetime(current_date.year, month, day).strftime('%Y-%m-%d')
-			compliance_date = getdate(new_date)
+			month_flag = {"Quarterly": 3, "Half Yearly": 6, "Yearly": 12}.get(
+				sub_category_doc.repeat_on, 0
+			)
+			month = months_dict.get(sub_category_doc.month, current_date.month)
+			compliance_date = getdate(datetime(current_date.year, month, day))
+			print("here")
 			if compliance_date < current_date:
+				print("here2")
 				compliance_date = add_months(compliance_date, month_flag)
-		notification_date = add_days(compliance_date, -10)
-		projects_to_notify = frappe.db.get_all("Project", {"status":"Completed", "expected_end_date":["<", notification_date], "renew_email_sent_on":["is", "not set"], "compliance_sub_category":sub_category}, pluck="name")
-		recipients = []
-		for project in projects_to_notify:
-			customer = frappe.db.get_value("Project", project, "customer")
-			customer_contact = frappe.db.get_value("Dynamic Link", {"parenttype":"Contact", "link_doctype":"Customer", "link_name":customer}, "parent")
-			customer_email = frappe.db.get_value("Contact", customer_contact, "email_id")
-			if customer_email and customer_email not in recipients:
-				recipients.append(customer_email)
-		if frappe.db.exists("Email Template", sub_category_doc.renew_notification_for_customer):
-			email_template_doc = frappe.get_doc("Email Template", sub_category_doc.renew_notification_for_customer)
-			frappe.sendmail(recipients, subject=email_template_doc.subject, message=email_template_doc.response)
+			print("here3")
+		return getdate(compliance_date)
+	except Exception as e:
+		frappe.log_error(message=str(e), title="Compliance Date Calculation Error")
+		return None
+
+
+def send_notification_email(projects_to_notify, sub_category_doc):
+	"""Send notification emails for the given projects."""
+	recipients = set()
+	for project in projects_to_notify:
+		customer = frappe.db.get_value("Project", project, "customer")
+		contact = frappe.db.get_value(
+			"Dynamic Link",
+			{
+				"parenttype": "Contact",
+				"link_doctype": "Customer",
+				"link_name": customer,
+			},
+			"parent",
+		)
+		email = frappe.db.get_value("Contact", contact, "email_id")
+		if email:
+			recipients.add(email)
+
+	if recipients and frappe.db.exists(
+		"Email Template", sub_category_doc.renew_notification_for_customer
+	):
+		try:
+			email_template = frappe.get_doc(
+				"Email Template", sub_category_doc.renew_notification_for_customer
+			)
+			context = get_context(sub_category_doc)
+			subject = frappe.render_template(email_template.subject, context)
+			message = frappe.render_template(email_template.response, context)
+			frappe.sendmail(
+				recipients=list(recipients),
+				subject=subject,
+				message=message,
+			)
 			for project in projects_to_notify:
 				frappe.db.set_value("Project", project, "renew_email_sent_on", today())
+		except Exception as e:
+			frappe.log_error(message=str(e), title="Email Sending Error")

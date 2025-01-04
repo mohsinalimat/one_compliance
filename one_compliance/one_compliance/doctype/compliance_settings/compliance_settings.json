@@ -30,6 +30,7 @@
   "task_overdue_notification_for_employee",
   "task_overdue_notification_for_director",
   "digital_signature_expiry_notification",
+  "renew_notfication",
   "column_break_xwbwy",
   "task_complete_notification_for_director",
   "no_action_taken_notification_for_director",
@@ -274,12 +275,18 @@
    "fieldname": "ignore_dependent_task_validation",
    "fieldtype": "Check",
    "label": "Complete Dependent Tasks On Task Completion"
+  },
+  {
+   "fieldname": "renew_notfication",
+   "fieldtype": "Link",
+   "label": "Renew Notfication",
+   "options": "Email Template"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-11-21 11:03:54.257737",
+ "modified": "2025-01-04 09:38:35.632387",
  "modified_by": "Administrator",
  "module": "One Compliance",
  "name": "Compliance Settings",
