@@ -3873,6 +3873,13 @@ def get_project_custom_fields():
                 "unique": 0,
                 "width": None,
             },
+            {
+                "fieldname": "renew_email_sent_on",
+                "fieldtype": "Date",
+                "label": "Renew Email Sent On",
+                "hidden":1,
+                "insert_after": "is_invoiced"
+            }
         ]
     }
 

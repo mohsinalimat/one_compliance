@@ -18,6 +18,8 @@
   "repeat_on",
   "month",
   "day",
+  "renew_notif",
+  "renew_notif_days_before",
   "project_based_on_prior_phase",
   "column_break_06mwn",
   "enabled",
@@ -38,6 +40,7 @@
   "task_before_due_date_notification",
   "task_complete_notification_for_director",
   "task_overdue_notification_for_employee",
+  "renew_notification_for_customer",
   "column_break_g0ffa",
   "task_overdue_notification_for_director",
   "no_action_taken_notification_for_director",
@@ -274,11 +277,30 @@
    "fieldname": "internal",
    "fieldtype": "Check",
    "label": "Internal"
+  },
+  {
+   "default": "0",
+   "fieldname": "renew_notif",
+   "fieldtype": "Check",
+   "label": "Send Renew Notification to Customer"
+  },
+  {
+   "depends_on": "eval: doc.renew_notif",
+   "fieldname": "renew_notif_days_before",
+   "fieldtype": "Float",
+   "label": "Days Before Start Date to Send the Notification",
+   "precision": "1"
+  },
+  {
+   "fieldname": "renew_notification_for_customer",
+   "fieldtype": "Link",
+   "label": "Renew Notification for Customer",
+   "options": "Email Template"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-07-20 16:03:57.569132",
+ "modified": "2025-01-01 12:14:25.288091",
  "modified_by": "Administrator",
  "module": "One Compliance",
  "name": "Compliance Sub Category",
