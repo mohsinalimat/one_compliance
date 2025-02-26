@@ -2,7 +2,6 @@
 # For license information, please see license.txt
 
 import json
-
 import frappe
 from frappe.desk.form.assign_to import add as add_assignment
 from frappe.model.document import Document
@@ -34,64 +33,67 @@ class TaskBulkAssignment(Document):
 			task_reassign.status = task.get('status')
 
 	@frappe.whitelist()
-	def get_all_tasks(
-		self, department=None, category=None, subcategory=None, assigned_to=None
-	):
-		filters = {}
+	def get_all_tasks(self, department=None, category=None, subcategory=None, assigned_to=None):
+	    filters = {}
 
-		# Add status filter based on the selected status in Task Bulk Assignment
-		if self.status:
-			filters['status'] = self.status
-		# Adding optional filters if provided
-		if self.department:
-			subcategories = frappe.get_all(
-				'Compliance Sub Category',
-				filters={'department': self.department},
-				fields=['name'],
-			)
-			subcategory_names = [sub['name'] for sub in subcategories]
-			filters['compliance_sub_category'] = ['in', subcategory_names]
+	    # Add status filter based on the selected status in Task Bulk Assignment
+	    if self.status:
+	        filters['status'] = self.status
 
-		if self.category:
-			subcategories = frappe.get_all(
-				'Compliance Sub Category',
-				filters={'compliance_category': self.category},
-				fields=['name'],
-			)
-			subcategory_names = [sub['name'] for sub in subcategories]
-			filters['compliance_sub_category'] = ['in', subcategory_names]
+	    # Adding optional filters if provided
+	    if self.department:
+	        subcategories = frappe.get_all(
+	            'Compliance Sub Category',
+	            filters={'department': self.department},
+	            fields=['name'],
+	        )
+	        subcategory_names = [sub['name'] for sub in subcategories]
+	        filters['compliance_sub_category'] = ['in', subcategory_names]
 
-		if self.sub_category:
-			filters['compliance_sub_category'] = self.sub_category
+	    if self.category:
+	        subcategories = frappe.get_all(
+	            'Compliance Sub Category',
+	            filters={'compliance_category': self.category},
+	            fields=['name'],
+	        )
+	        subcategory_names = [sub['name'] for sub in subcategories]
+	        filters['compliance_sub_category'] = ['in', subcategory_names]
 
-		if self.project:
-			filters['project'] = self.project
+	    if self.sub_category:
+	        filters['compliance_sub_category'] = self.sub_category
 
-		# Fetch tasks based on filters
-		all_tasks = frappe.get_all(
-			'Task',
-			filters=filters,
-			fields=[
-				'name',
-				'subject',
-				'project_name',
-				'compliance_sub_category',
-				'status',
-			],
-		)
+	    if self.project:
+	        filters['project'] = self.project
 
-		if self.assigned_to:
-			# Fetch tasks allocated to the specified 'assigned_to'
-			assigned_tasks = self.fetch_tasks_by_assign_from(self.assigned_to)
-			task_ids_assigned_to = [task['task_id'] for task in assigned_tasks]
+	    if self.from_date and self.to_date:
+	        filters["exp_start_date"] = ["between", [self.from_date, self.to_date]]
 
-			# Filter the fetched tasks to only include those assigned to 'assigned_to'
-			filtered_tasks = [
-				task for task in all_tasks if task['name'] in task_ids_assigned_to
-			]
-			return filtered_tasks
+	    # Fetch tasks based on filters
+	    all_tasks = frappe.get_all(
+	        'Task',
+	        filters=filters,
+	        fields=[
+	            'name',
+	            'subject',
+	            'project_name',
+	            'compliance_sub_category',
+	            'status',
+	        ],
+	    )
 
-		return all_tasks
+	    if self.assigned_to:
+	        # Fetch tasks allocated to the specified 'assigned_to'
+	        assigned_tasks = self.fetch_tasks_by_assign_from(self.assigned_to)
+	        task_ids_assigned_to = [task['task_id'] for task in assigned_tasks]
+
+	        # Filter the fetched tasks to only include those assigned to 'assigned_to'
+	        filtered_tasks = [
+	            task for task in all_tasks if task['name'] in task_ids_assigned_to
+	        ]
+	        return filtered_tasks
+
+	    return all_tasks
+
 
 	@frappe.whitelist()
 	def fetch_tasks_by_assign_from(self, assign_from):

@@ -10,11 +10,13 @@
   "department",
   "category",
   "sub_category",
+  "from_date",
   "column_break_lwccr",
   "assignment_based_on",
   "project",
   "assigned_to",
   "status",
+  "to_date",
   "task_reassigns_section",
   "task_reassigns",
   "column_break_x0pun",
@@ -97,13 +99,23 @@
    "fieldtype": "Link",
    "label": "Project",
    "options": "Project"
+  },
+  {
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "From Date"
+  },
+  {
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "To Date"
   }
  ],
  "hide_toolbar": 1,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-11-26 14:23:44.159595",
+ "modified": "2025-02-26 11:14:37.205363",
  "modified_by": "Administrator",
  "module": "One Compliance",
  "name": "Task Bulk Assignment",
