@@ -68,6 +68,23 @@ class TaskBulkAssignment(Document):
 	    if self.from_date and self.to_date:
 	        filters["exp_start_date"] = ["between", [self.from_date, self.to_date]]
 
+	    user = frappe.session.user
+	    user_roles = frappe.get_roles(user)
+
+	    # **If user is an Executive, apply task filter for assigned tasks**
+	    if "Executive" in user_roles:
+	        assigned_tasks = frappe.get_all(
+	            'ToDo',
+	            filters={'allocated_to': user, 'reference_type': 'Task'},
+	            fields=['reference_name']
+	        )
+	        assigned_task_ids = [task['reference_name'] for task in assigned_tasks]
+
+	        if assigned_task_ids:
+	            filters['name'] = ['in', assigned_task_ids]
+	        else:
+	            return []  # No tasks assigned to this Executive
+
 	    # Fetch tasks based on filters
 	    all_tasks = frappe.get_all(
 	        'Task',
