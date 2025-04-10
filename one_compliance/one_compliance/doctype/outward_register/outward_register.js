@@ -4,7 +4,7 @@
 frappe.ui.form.on('Outward Register', {
 	refresh: function(frm) {
 
-		//set filter for inward register field 
+		//set filter for inward register field
 		frm.set_query('inward_register', function() {
 			return {
 				filters: {
@@ -16,12 +16,19 @@ frappe.ui.form.on('Outward Register', {
 		frm.set_query('document_register_type', function(doc, cdt, cdn) {
 			// To set filter for document register type field
             var d = locals[cdt][cdn];
+			if (!frm.doc.if_outward_only && frm.doc.inward_register) {
 							return {
 								query: 'one_compliance.one_compliance.doctype.outward_register.outward_register.set_filter_for_document_register_type',
 								filters: {
 									'inward_register': frm.doc.inward_register
 								}
 							};
+			} else {
+				// Return empty query if not applicable
+				return {
+					filters: {}
+				};
+			}
         });
 
     if(frm.is_new()) {
