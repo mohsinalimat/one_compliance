@@ -28,7 +28,27 @@ frappe.ui.form.on('Task Bulk Assignment', {
   setup: function (frm) {
     set_filters(frm);
   },
+  from_date: function (frm) {
+    validate_dates(frm);
+  },
+  to_date: function (frm) {
+    validate_dates(frm);
+  }
 });
+
+
+function validate_dates(frm) {
+  if (frm.doc.from_date && frm.doc.to_date) {
+    if (frm.doc.from_date > frm.doc.to_date) {
+      frappe.msgprint({
+        title: __('Validation Error'),
+        indicator: 'red',
+        message: __('The "From Date" cannot be later than the "To Date".')
+      });
+      frm.set_value('from_date', null);  // Reset incorrect value
+    }
+  }
+}
 
 let clear_values = function (frm) {
   // clear field values
