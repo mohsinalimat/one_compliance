@@ -174,6 +174,7 @@ def create_journal_entry_pay_info(task, payment_info):
         default_account = get_default_account_for_mode_of_payment(payment_info['mode_of_payment'], task.company)
         journal_entry = frappe.new_doc('Journal Entry')
         journal_entry.voucher_type = 'Bank Entry'
+        journal_entry.company = task.company
         journal_entry.cheque_no = payment_info['reference_number']
         journal_entry.cheque_date = payment_info['reference_date']
         journal_entry.user_remark = payment_info['user_remark']
