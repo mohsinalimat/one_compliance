@@ -26,7 +26,7 @@ def project_on_update(doc, method):
 
 	if is_not_rework:
 		update_sales_order_billing_instruction(doc.sales_order, doc.custom_billing_instruction)
-		
+
 def update_sales_order_billing_instruction(sales_order, custom_billing_instruction):
     """
     Updates the 'Billing Instruction' field in the Sales Order.
@@ -54,8 +54,10 @@ def set_project_status(project, status, comment=None):
 
 	project = frappe.get_doc("Project", project)
 	frappe.has_permission(doc=project, throw=True)
-
-	for task in frappe.get_all("Task", dict(project=project.name)):
+	tasks = frappe.get_all("Task", filters={"project": project.name}, fields=["name", "status"])
+	for task in tasks:
+		if task.status == "Completed":
+			continue
 		frappe.db.set_value("Task", task.name, "status", status)
 		if status == "Hold":
 			frappe.db.set_value("Task", task.name, "hold", 1)
@@ -63,14 +65,13 @@ def set_project_status(project, status, comment=None):
 			frappe.db.set_value("Task", task.name, "hold", 0)
 			task_doc = frappe.get_doc('Task', task.name)
 			update_expected_dates_in_task(task_doc)
-	project.status = status
+	frappe.db.set_value("Project", project.name, "status", status)
 	if status == "Hold":
-		project.hold = 1
+		frappe.db.set_value("Project", project.name, "hold", 1)
 	elif status == "Open":
-		project.hold = 0
+		frappe.db.set_value("Project", project.name, "hold", 0)
 	if comment:
 		project.add_comment('Comment', comment)
-	project.save()
 
 @frappe.whitelist()
 def project_after_insert(doc, method):
