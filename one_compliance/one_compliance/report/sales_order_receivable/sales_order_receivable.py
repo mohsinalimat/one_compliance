@@ -39,31 +39,63 @@ def get_columns():
     ]
 
 def get_conditions(filters):
-    conditions = ""
+    conditions = []
     values = []
 
     if filters.get("customer"):
-        conditions += " AND so.customer = %s"
+        conditions.append("so.customer = %s")
         values.append(filters["customer"])
 
+    if filters.get("company"):
+        conditions.append("so.company = %s")
+        values.append(filters["company"])
+
     if filters.get("territory"):
-        conditions += " AND cust.territory = %s"
-        values.append(filters["territory"])
+        # Include all child territories
+        territory = frappe.get_doc("Territory", filters["territory"])
+        territories = [filters["territory"]]
+        if territory.is_group:
+            territories = [d.name for d in frappe.get_all("Territory", filters={"lft": [">=", territory.lft], "rgt": ["<=", territory.rgt]})]
+        conditions.append("cust.territory IN ({})".format(", ".join(["%s"] * len(territories))))
+        values.extend(territories)
 
     if filters.get("customer_group"):
-        conditions += " AND cust.customer_group = %s"
-        values.append(filters["customer_group"])
+        # Include all child customer groups
+        customer_group = frappe.get_doc("Customer Group", filters["customer_group"])
+        customer_groups = [filters["customer_group"]]
+        if customer_group.is_group:
+            customer_groups = [d.name for d in frappe.get_all("Customer Group", filters={"lft": [">=", customer_group.lft], "rgt": ["<=", customer_group.rgt]})]
+        conditions.append("cust.customer_group IN ({})".format(", ".join(["%s"] * len(customer_groups))))
+        values.extend(customer_groups)
 
-    return conditions, values
+    return " AND ".join(conditions), values
 
 def get_data(filters):
     today = getdate(filters.get("report_date") or nowdate())
     data = []
 
-    conditions, values = get_conditions(filters)
-    values = [today] + values  # Prepend for DATEDIFF
+    # Use transaction_date for all date filtering even if filter field is called order_date
+    date_field = "transaction_date"
 
-    # Set workflow state condition
+    # Build date filter condition for transaction_date
+    date_condition = ""
+    from_date = filters.get("from_date")
+    to_date = filters.get("to_date")
+    values = []
+
+    if filters.get("ageing_based_on") == "Posting Date" and from_date and to_date:
+        date_condition = "AND so.transaction_date BETWEEN %s AND %s"
+        values.extend([from_date, to_date])
+
+    elif filters.get("ageing_based_on") == "Due Date" and from_date and to_date:
+        date_condition = "AND ps.due_date BETWEEN %s AND %s"
+        values.extend([from_date, to_date])
+
+
+    # Build conditions for other filters (customer, company, territory, etc)
+    conditions, extra_values = get_conditions(filters)
+
+    # Workflow states filter
     workflow_states = ["Proforma Invoice"]
     if filters.get("include_invoiced"):
         workflow_states.append("Invoiced")
@@ -71,7 +103,10 @@ def get_data(filters):
         workflow_states.append("Paid")
 
     workflow_condition = f"AND so.workflow_state IN ({', '.join(['%s'] * len(workflow_states))})"
-    values.extend(workflow_states)
+
+    # Compose final list of values matching placeholders
+    # First value for DATEDIFF (today), then workflow states, then date filter, then other filters
+    values = [today] + workflow_states + values + extra_values
 
     query = f"""
         SELECT
@@ -79,13 +114,13 @@ def get_data(filters):
             'Customer' AS party_type,
             so.customer,
             soi.cost_center,
+            ps.due_date AS due_date,
             'Sales Order' AS voucher_type,
             so.name AS voucher_no,
-            so.delivery_date AS due_date,
             so.grand_total,
             so.advance_paid AS paid_amount,
             (so.grand_total - so.advance_paid) AS outstanding_amount,
-            DATEDIFF(%s, so.transaction_date) AS age,
+            DATEDIFF(%s, so.{date_field}) AS age,
             so.currency,
             cust.territory,
             cust.customer_group,
@@ -93,16 +128,17 @@ def get_data(filters):
         FROM `tabSales Order` so
         LEFT JOIN `tabSales Order Item` soi ON soi.parent = so.name
         LEFT JOIN `tabCustomer` cust ON cust.name = so.customer
-        LEFT JOIN `tabDynamic Link` dl ON dl.link_doctype = 'Customer' AND dl.link_name = so.customer AND dl.parenttype = 'Contact'
-        LEFT JOIN `tabContact` c ON c.name = dl.parent AND c.is_primary_contact = 1
+        LEFT JOIN `tabPayment Schedule` ps ON ps.parent = so.name
         WHERE so.docstatus = 1
         {workflow_condition}
-        {conditions}
+        {date_condition}
+        {f"AND {conditions}" if conditions else ""}
         GROUP BY so.name
     """
 
     results = frappe.db.sql(query, values, as_dict=True)
 
+    # Process ageing ranges (same as before)
     for row in results:
         age = row.age or 0
         row.range1 = row.range2 = row.range3 = row.range4 = row.range5 = 0
@@ -121,6 +157,8 @@ def get_data(filters):
         data.append(row)
 
     return data
+
+
 
 def get_chart_data(data):
     chart = {

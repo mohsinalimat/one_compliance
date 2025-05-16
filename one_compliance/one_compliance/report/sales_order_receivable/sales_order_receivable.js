@@ -12,8 +12,21 @@ frappe.query_reports["Sales Order Receivable"] = {
             default: frappe.defaults.get_user_default("Company"),
         },
         {
-            fieldname: "report_date",
-            label: __("Order Date"),
+            fieldname: "ageing_based_on",
+            label: __("Ageing Based On"),
+            fieldtype: "Select",
+            options: "Due Date\nPosting Date",
+            default: "Due Date",
+        },
+        {
+            fieldname: "from_date",
+            label: __("From Date"),
+            fieldtype: "Date",
+            default: frappe.datetime.add_months(frappe.datetime.get_today(), -1),
+        },
+        {
+            fieldname: "to_date",
+            label: __("To Date"),
             fieldtype: "Date",
             default: frappe.datetime.get_today(),
         },
@@ -30,33 +43,10 @@ frappe.query_reports["Sales Order Receivable"] = {
             options: "Customer Group",
         },
         {
-            fieldname: "sales_person",
-            label: __("Sales Person"),
-            fieldtype: "Link",
-            options: "Sales Person",
-        },
-        {
             fieldname: "territory",
             label: __("Territory"),
             fieldtype: "Link",
             options: "Territory",
-        },
-        {
-            fieldname: "group_by_customer",
-            label: __("Group By Customer"),
-            fieldtype: "Check",
-        },
-        {
-            fieldname: "show_sales_person",
-            label: __("Show Sales Person"),
-            fieldtype: "Check",
-        },
-        {
-            fieldname: "ageing_based_on",
-            label: __("Ageing Based On"),
-            fieldtype: "Select",
-            options: "Due Date\nPosting Date",
-            default: "Due Date",
         },
         {
             fieldname: "range",
