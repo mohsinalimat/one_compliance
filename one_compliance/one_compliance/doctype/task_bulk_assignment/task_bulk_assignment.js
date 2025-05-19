@@ -19,7 +19,11 @@ frappe.ui.form.on('Task Bulk Assignment', {
     frm.change_custom_button_type('Get Allocation Entries', null, 'primary');
     if (frm.doc.task_reassigns.length || frm.doc.assign_to.length) {
       frm.add_custom_button('Allocate', () => {
-        allocate_tasks_to_employee(frm);
+        if (frm.doc.assignment_based_on === 'Project'){
+          allocate_tasks_from_projects(frm);
+        }else{
+          allocate_tasks_to_employee(frm);
+        }
       });
       frm.change_custom_button_type('Allocate', null, 'primary');
       frm.change_custom_button_type('Get Allocation Entries', null, 'default');
@@ -118,18 +122,16 @@ let set_filters = function (frm) {
 };
 
 function get_allocation_entries(frm) {
-  if (frm.doc.assignment_based_on == 'Project' && !frm.doc.project) {
-    frappe.throw({
-      title: __('Message'),
-      message: __('Please select a project before proceeding'),
-    });
-  }
   frappe.call({
     doc: frm.doc,
     method: 'get_allocation_entries',
+    freeze: true,
+    freeze_message: __('Fetching Allocation Entries...'),
     callback: (r) => {
       if (r.message === 'success') {
         frm.refresh();
+        frm.refresh_field('task_reassigns');
+        frm.refresh_field('project_reassigns');
       } else {
         frappe.msgprint('Error retrieving data');
       }
@@ -164,18 +166,13 @@ function allocate_tasks_to_employee(frm) {
     return employee.employee; // Replace 'employee_id' with the actual field name containing the employee ID
   });
 
-  let project = '';
-  if (frm.doc.assignment_based_on == 'Project') {
-    project = frm.doc.project;
-  }
 
   frappe.call({
     method:
       'one_compliance.one_compliance.doctype.task_bulk_assignment.task_bulk_assignment.allocate_tasks_to_employee',
     args: {
       selected_task_ids: selectedTaskIds,
-      selected_employee_ids: selectedEmployeeIds,
-      project: project,
+      selected_employee_ids: selectedEmployeeIds
     },
     freeze: true,
     freeze_message: 'Allocating tasks...',
@@ -189,5 +186,50 @@ function allocate_tasks_to_employee(frm) {
         frappe.msgprint('Error: Unable to allocate tasks.');
       }
     },
+  });
+}
+
+function allocate_tasks_from_projects(frm) {
+  let selectedEmployees = frm.fields_dict.assign_to.grid.get_selected_children();
+  if (selectedEmployees.length === 0) {
+    frappe.msgprint('Please select employees to whom tasks will be allocated.');
+    return;
+  }
+  let selectedProjects = frm.fields_dict.project_reassigns.grid.get_selected_children();
+  if (selectedProjects.length === 0) {
+    frappe.msgprint('Please select projects to allocate tasks from.');
+    return;
+  }
+  let selectedProjectIds = selectedProjects.map(row => row.project);
+  let selectedEmployeeIds = selectedEmployees.map(emp => emp.employee);
+  frappe.call({
+    method: 'one_compliance.one_compliance.doctype.task_bulk_assignment.task_bulk_assignment.get_tasks_from_projects',
+    args: {
+      projects: selectedProjectIds
+    },
+    callback: function (r) {
+      if (r.message && r.message.length > 0) {
+        let selectedTaskIds = r.message;
+        frappe.call({
+          method: 'one_compliance.one_compliance.doctype.task_bulk_assignment.task_bulk_assignment.allocate_tasks_to_employee',
+          args: {
+            selected_task_ids: selectedTaskIds,
+            selected_employee_ids: selectedEmployeeIds
+          },
+          freeze: true,
+          freeze_message: 'Allocating tasks...',
+          callback: function (res) {
+            if (res.message === 'Tasks allocated successfully') {
+              frappe.msgprint('Tasks allocated successfully.');
+              frm.reload_doc();
+            } else {
+              frappe.msgprint('Error: Unable to allocate tasks.');
+            }
+          }
+        });
+      } else {
+        frappe.msgprint('No eligible tasks found in the selected projects.');
+      }
+    }
   });
 }

@@ -13,12 +13,12 @@
   "from_date",
   "column_break_lwccr",
   "assignment_based_on",
-  "project",
   "assigned_to",
   "status",
   "to_date",
   "task_reassigns_section",
   "task_reassigns",
+  "project_reassigns",
   "column_break_x0pun",
   "assign_to"
  ],
@@ -37,6 +37,7 @@
    "label": "Task Reassigning Entries"
   },
   {
+   "depends_on": "eval: doc.assignment_based_on == \"Task\"",
    "fieldname": "task_reassigns",
    "fieldtype": "Table",
    "label": "Task Reassigns",
@@ -94,13 +95,6 @@
    "options": "Task\nProject"
   },
   {
-   "depends_on": "eval: doc.assignment_based_on == \"Project\";",
-   "fieldname": "project",
-   "fieldtype": "Link",
-   "label": "Project",
-   "options": "Project"
-  },
-  {
    "fieldname": "from_date",
    "fieldtype": "Date",
    "label": "From Date"
@@ -109,13 +103,20 @@
    "fieldname": "to_date",
    "fieldtype": "Date",
    "label": "To Date"
+  },
+  {
+   "depends_on": "eval: doc.assignment_based_on == \"Project\"",
+   "fieldname": "project_reassigns",
+   "fieldtype": "Table",
+   "label": "Project Reassigns",
+   "options": "Project Reassign"
   }
  ],
  "hide_toolbar": 1,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-02-26 11:14:37.205363",
+ "modified": "2025-05-19 09:41:40.027446",
  "modified_by": "Administrator",
  "module": "One Compliance",
  "name": "Task Bulk Assignment",
