@@ -26,9 +26,9 @@ def get_missing_projects(filters):
     results = []
     params = {"today": today()}
     if filters.get("include_expired"):
-        conditions = "ca.status = 'Expired'"
+        conditions = "(ca.status = 'Expired' OR (ca.status != 'Expired' AND (ca.valid_upto IS NULL OR ca.valid_upto <= %(today)s))) AND ca.docstatus != 2"
     else:
-        conditions = "ca.status != 'Expired' AND ca.valid_upto <= %(today)s"
+        conditions = "ca.status != 'Expired' AND (ca.valid_upto IS NULL OR ca.valid_upto <= %(today)s) AND ca.docstatus != 2"
     if filters.get("customer"):
         conditions += " AND ca.customer = %(customer)s"
         params["customer"] = filters["customer"]
@@ -82,7 +82,10 @@ def get_missing_projects(filters):
             except Exception:
                 day = None
         valid_from = getdate(agreement.valid_from)
-        valid_upto = getdate(agreement.valid_upto)
+        if agreement.valid_upto:
+            valid_upto = getdate(agreement.valid_upto)
+        else:
+            valid_upto = getdate(today())
         expected_dates = get_repeat_dates(valid_from, valid_upto, frequency, month, day)
         for compliance_date in expected_dates:
             project_exists = frappe.db.exists("Project", {
@@ -98,6 +101,7 @@ def get_missing_projects(filters):
                     "expected_start_date": compliance_date
                 })
     return results
+
 
 def get_repeat_dates(start_date, valid_upto, frequency, month=None, day=None):
     dates = []
