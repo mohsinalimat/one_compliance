@@ -21,13 +21,14 @@ def get_columns():
         {"label": "Compliance Date", "fieldname": "expected_start_date", "fieldtype": "Date", "width": 120},
     ]
 
+
 def get_missing_projects(filters):
     results = []
     params = {"today": today()}
     if filters.get("include_expired"):
         conditions = "ca.status = 'Expired'"
     else:
-        conditions = "ca.status != 'Expired' AND ca.valid_upto >= %(today)s"
+        conditions = "ca.status != 'Expired' AND ca.valid_upto <= %(today)s"
     if filters.get("customer"):
         conditions += " AND ca.customer = %(customer)s"
         params["customer"] = filters["customer"]
@@ -109,28 +110,34 @@ def get_repeat_dates(start_date, valid_upto, frequency, month=None, day=None):
                 max_day = calendar.monthrange(year, m)[1]
                 day_to_use = day if day <= max_day else max_day
                 candidate = date(year, m, day_to_use)
-                if year == start_date.year and candidate <= start_date:
+                if candidate < start_date:
                     continue
                 if candidate > limit_date:
                     return dates
                 dates.append(candidate)
             year += 1
+
     else:
         current = start_date
         while current <= limit_date:
-            dates.append(current)
-            if frequency == "Monthly":
-                current = add_months(current, 1)
-            elif frequency == "Quarterly":
-                current = add_months(current, 3)
-            elif frequency == "Half Yearly":
-                current = add_months(current, 6)
-            elif frequency == "Yearly":
-                current = add_years(current, 1)
-            else:
+            candidate_day = day if day else current.day
+            max_day = calendar.monthrange(current.year, current.month)[1]
+            candidate_day = min(candidate_day, max_day)
+            candidate_date = date(current.year, current.month, candidate_day)
+            if candidate_date < start_date:
+                current = add_months(current, 1 if frequency == "Monthly" else
+                                            3 if frequency == "Quarterly" else
+                                            6 if frequency == "Half Yearly" else
+                                            12)
+                continue
+            if candidate_date > limit_date:
                 break
+            dates.append(candidate_date)
+            current = add_months(current, 1 if frequency == "Monthly" else
+                                        3 if frequency == "Quarterly" else
+                                        6 if frequency == "Half Yearly" else
+                                        12)
     return dates
-
 
 
 
