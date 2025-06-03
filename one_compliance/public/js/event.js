@@ -145,7 +145,8 @@ let create_sales_order = function (frm) {
             'customer': frm.doc.custom_customer,
             'sub_category': frm.doc.custom_service,
             'rate': frm.doc.custom_rate,
-            'description': frm.doc.custom_service_description
+            'description': frm.doc.custom_service_description,
+            'company': frm.doc.company
         },
         callback: function (r) {
             if (r.message) {
