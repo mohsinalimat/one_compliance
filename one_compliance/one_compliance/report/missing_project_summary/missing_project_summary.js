@@ -1,7 +1,7 @@
 // Copyright (c) 2025, efeone and contributors
 // For license information, please see license.txt
 
-frappe.query_reports["Project Compliance  Agreement Link Report"] = {
+frappe.query_reports["Missing Project Summary"] = {
 	"filters": [
 		{
             "fieldname": "customer",

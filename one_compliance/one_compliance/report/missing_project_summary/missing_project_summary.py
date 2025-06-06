@@ -41,7 +41,7 @@ def get_missing_projects(filters):
     valid_date_fields = {
         "Valid From": "ca.valid_from",
         "Valid Upto": "ca.valid_upto",
-        "Posting Date": "ca.posting_date"  
+        "Posting Date": "ca.posting_date"
     }
     date_basis_field = valid_date_fields.get(date_basis)
     if from_date and to_date and date_basis_field:
@@ -142,6 +142,3 @@ def get_repeat_dates(start_date, valid_upto, frequency, month=None, day=None):
                                         6 if frequency == "Half Yearly" else
                                         12)
     return dates
-
-
-
