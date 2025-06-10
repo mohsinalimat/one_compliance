@@ -1,12 +1,12 @@
-import frappe
 import json
-from frappe.utils import *
-from frappe.model.document import Document
-from frappe.email.doctype.notification.notification import get_context
-from frappe.utils.user import get_users_with_role
+
+import frappe
 from frappe import _
-from datetime import date
 from frappe.desk.form.assign_to import add as add_assign
+from frappe.email.doctype.notification.notification import get_context
+from frappe.utils import date_diff, get_datetime, getdate
+from frappe.utils.user import get_users_with_role
+
 
 @frappe.whitelist()
 def create_notification_log(subject, type, for_user, email_content, document_type, document_name):
@@ -55,13 +55,17 @@ def task_daily_sheduler():
 						if doc.exp_end_date:
 							days_diff = date_diff(getdate(doc.exp_end_date), getdate(today))
 							if days_diff == 0:
-								send_notification(doc, assign, context, 'task_overdue_notification_for_employee')
-								send_notification_to_roles(doc, 'Director', context, 'task_overdue_notification_for_director')
+								if frappe.db.get_single_value('Compliance Settings', 'enable_task_overdue_notification_for_employee'):
+									send_notification(doc, assign, context, 'task_overdue_notification_for_employee')
+								if frappe.db.get_single_value('Compliance Settings', 'enable_task_overdue_notification_for_director'):
+									send_notification_to_roles(doc, 'Director', context, 'task_overdue_notification_for_director')
 							if days_diff == 1:
-								send_notification(doc, assign, context, 'task_before_due_date_notification')
+								if frappe.db.get_single_value('Compliance Settings', 'enable_task_before_due_date_notification'):
+									send_notification(doc, assign, context, 'task_before_due_date_notification')
 						if doc.exp_start_date:
 							if doc.status == 'Open' and (getdate(doc.exp_start_date) < getdate(today)):
-								send_notification_to_roles(doc, 'Director', context, 'no_action_taken_notification_for_director')
+								if frappe.db.get_single_value('Compliance Settings', 'enable_task_no_action_taken_notification_for_director'):
+									send_notification_to_roles(doc, 'Director', context, 'no_action_taken_notification_for_director')
 
 @frappe.whitelist()
 def project_overdue_notification():
@@ -75,7 +79,8 @@ def project_overdue_notification():
 				if doc.expected_end_date:
 					days_diff = date_diff(getdate(doc.expected_end_date), getdate(today))
 					if days_diff == 1:
-						send_notification_to_roles(doc, 'Director', context, 'project_before_due_date_notification')
+						if frappe.db.get_single_value('Compliance Settings', 'enable_project_before_due_date_notification'):
+							send_notification_to_roles(doc, 'Director', context, 'project_before_due_date_notification')
 
 @frappe.whitelist()
 def send_notification(doc, for_user, context, notification_template_fieldname):
@@ -166,7 +171,7 @@ def notification_for_digital_signature_expiry():
 			context = get_context(digital_signature_doc)
 			director_mail = digital_signature_doc.director_email
 			due_date = getdate(digital_signature_doc.expiry_date)
-			if digital_signature_doc.notify_before:
+			if digital_signature_doc.notify_before and frappe.db.get_single_value('Compliance Settings', 'enable_digital_signature_expiry_notification'):
 				if digital_signature_doc.notify_before_unit == 'Day':
 					notification_date = frappe.utils.add_to_date(due_date, days=-1*digital_signature_doc.notify_before)
 					if getdate(notification_date) == today:

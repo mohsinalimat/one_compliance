@@ -2,16 +2,15 @@
 # For license information, please see license.txt
 
 import frappe
-from frappe.utils import *
 from frappe.model.document import Document
-from erpnext import get_company_currency, get_default_company
+from frappe.utils import getdate
+
 
 class ComplianceSettings(Document):
 	pass
 
 @frappe.whitelist()
 def manual_project_creations(starting_date):
-	company = get_default_company()
 	if starting_date:
 		agreements = frappe.db.get_all('Compliance Agreement', filters = {'status': 'Active'})
 		if agreements:
@@ -22,8 +21,10 @@ def manual_project_creations(starting_date):
 	return True
 
 def create_project_if_not_exists(self, starting_date):
-	from one_compliance.one_compliance.doctype.compliance_agreement.compliance_agreement import create_project_against_sub_category
-	from one_compliance.one_compliance.doctype.compliance_agreement.compliance_agreement import check_project_exists_or_not
+	from one_compliance.one_compliance.doctype.compliance_agreement.compliance_agreement import (
+		check_project_exists_or_not,
+		create_project_against_sub_category,
+	)
 	if self.status == 'Active' and self.workflow_state=='Customer Approved':
 		if self.compliance_category_details:
 			for compliance_category in self.compliance_category_details:
@@ -33,7 +34,9 @@ def create_project_if_not_exists(self, starting_date):
 
 @frappe.whitelist()
 def compliance_date_update(compliance_date, compliance_agreement = None):
-	from one_compliance.one_compliance.doctype.compliance_agreement.compliance_agreement import update_compliance_dates
+	from one_compliance.one_compliance.doctype.compliance_agreement.compliance_agreement import (
+		update_compliance_dates,
+	)
 
 	filters = {'expected_start_date': getdate(compliance_date)}
 

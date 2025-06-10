@@ -336,7 +336,8 @@ def add_project_user_if_not_exists(project, user_id):
 def task_on_update(doc, method):
 	set_task_time_line(doc)
 	if doc.status == 'Completed':
-		task_complete_notification_for_director(doc)
+		if frappe.db.get_single_value("Compliance Settings", "enable_task_complete_notification_for_director"):
+			task_complete_notification_for_director(doc)
 		if doc.custom_is_payable:
 			create_journal_entry(doc)
 		if doc.project:
