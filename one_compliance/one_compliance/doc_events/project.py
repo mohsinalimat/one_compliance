@@ -21,7 +21,7 @@ def project_on_update(doc, method):
 		send_project_completion_mail = frappe.db.get_value('Customer', doc.customer, 'send_project_completion_mail')
 		if send_project_completion_mail:
 			email_id = frappe.db.get_value('Customer', doc.customer, 'email_id')
-			if email_id:
+			if email_id and frappe.db.get_single_value('Compliance Settings', 'enable_project_complete_notification_for_customer'):
 				project_complete_notification_for_customer(doc, email_id)
 
 	if is_not_rework:

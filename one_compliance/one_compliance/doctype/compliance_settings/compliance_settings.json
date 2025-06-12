@@ -26,15 +26,24 @@
   "column_break_kqmy",
   "ignore_dependent_task_validation",
   "tab_break_us4n3",
+  "enable_task_before_due_date_notification",
   "task_before_due_date_notification",
+  "enable_task_overdue_notification_for_employee",
   "task_overdue_notification_for_employee",
+  "enable_task_overdue_notification_for_director",
   "task_overdue_notification_for_director",
+  "enable_digital_signature_expiry_notification",
   "digital_signature_expiry_notification",
+  "enable_renew_notfication",
   "renew_notfication",
   "column_break_xwbwy",
+  "enable_task_complete_notification_for_director",
   "task_complete_notification_for_director",
+  "enable_no_action_taken_notification_for_director",
   "no_action_taken_notification_for_director",
+  "enable_project_complete_notification_for_customer",
   "project_complete_notification_for_customer",
+  "enable_project_before_due_date_notification",
   "project_before_due_date_notification",
   "digital_signature_settings_tab",
   "digital_signature_category",
@@ -56,36 +65,42 @@
    "fieldtype": "Column Break"
   },
   {
+   "depends_on": "eval: doc.enable_task_overdue_notification_for_employee",
    "fieldname": "task_overdue_notification_for_employee",
    "fieldtype": "Link",
-   "label": "Task Overdue Notification for Employee",
+   "label": "Task Overdue Notification for Employee Template",
    "options": "Notification Template"
   },
   {
+   "depends_on": "eval: doc.enable_task_overdue_notification_for_director",
    "fieldname": "task_overdue_notification_for_director",
    "fieldtype": "Link",
-   "label": "Task Overdue Notification for Director",
+   "label": "Task Overdue Notification for Director Template",
    "options": "Notification Template"
   },
   {
+   "depends_on": "eval: doc.enable_task_complete_notification_for_director",
    "fieldname": "task_complete_notification_for_director",
    "fieldtype": "Link",
    "label": "Task Complete Notification for Director",
    "options": "Notification Template"
   },
   {
+   "depends_on": "eval: doc.enable_no_action_taken_notification_for_director",
    "fieldname": "no_action_taken_notification_for_director",
    "fieldtype": "Link",
-   "label": "No Action Taken Notification for Director",
+   "label": "No Action Taken Notification for Director Template",
    "options": "Notification Template"
   },
   {
+   "depends_on": "eval: doc.enable_task_before_due_date_notification",
    "fieldname": "task_before_due_date_notification",
    "fieldtype": "Link",
-   "label": "Task Before Due Date Notification ",
+   "label": "Task Before Due Date Notification Template",
    "options": "Notification Template"
   },
   {
+   "depends_on": "eval: doc.enable_project_complete_notification_for_customer",
    "fieldname": "project_complete_notification_for_customer",
    "fieldtype": "Link",
    "label": "Project Complete Notification For Customer",
@@ -103,15 +118,17 @@
    "label": "Create user on Customer Creation"
   },
   {
+   "depends_on": "eval: doc.enable_digital_signature_expiry_notification",
    "fieldname": "digital_signature_expiry_notification",
    "fieldtype": "Link",
-   "label": "Digital Signature Expiry Notification",
+   "label": "Digital Signature Expiry Notification Template",
    "options": "Notification Template"
   },
   {
+   "depends_on": "eval: doc.enable_project_before_due_date_notification",
    "fieldname": "project_before_due_date_notification",
    "fieldtype": "Link",
-   "label": "Project Before Due Date Notification ",
+   "label": "Project Before Due Date Notification Template",
    "options": "Notification Template"
   },
   {
@@ -277,16 +294,72 @@
    "label": "Complete Dependent Tasks On Task Completion"
   },
   {
+   "depends_on": "eval: doc.enable_renew_notfication",
    "fieldname": "renew_notfication",
    "fieldtype": "Link",
-   "label": "Renew Notfication",
+   "label": "Renew Notification Template",
    "options": "Email Template"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_task_before_due_date_notification",
+   "fieldtype": "Check",
+   "label": "Task Before Due Date Notification"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_task_overdue_notification_for_employee",
+   "fieldtype": "Check",
+   "label": "Task Overdue Notification for Employee"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_task_overdue_notification_for_director",
+   "fieldtype": "Check",
+   "label": "Task Overdue Notification for Director"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_no_action_taken_notification_for_director",
+   "fieldtype": "Check",
+   "label": "No Action Taken Notification for Director"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_project_before_due_date_notification",
+   "fieldtype": "Check",
+   "label": "Project Before Due Date Notification"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_digital_signature_expiry_notification",
+   "fieldtype": "Check",
+   "label": "Digital Signature Expiry Notification",
+   "options": "Notification Template"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_renew_notfication",
+   "fieldtype": "Check",
+   "label": "Renew Notification"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_task_complete_notification_for_director",
+   "fieldtype": "Check",
+   "label": "Task Complete Notification for Director"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_project_complete_notification_for_customer",
+   "fieldtype": "Check",
+   "label": "Project Complete Notification For Customer"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-01-04 09:38:35.632387",
+ "modified": "2025-06-10 11:22:55.251813",
  "modified_by": "Administrator",
  "module": "One Compliance",
  "name": "Compliance Settings",
@@ -304,6 +377,7 @@
    "write": 1
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []

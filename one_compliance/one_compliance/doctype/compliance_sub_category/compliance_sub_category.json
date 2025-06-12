@@ -118,43 +118,37 @@
    "fieldname": "task_complete_notification_for_director",
    "fieldtype": "Link",
    "label": "Task Complete Notification for Director",
-   "options": "Notification Template",
-   "reqd": 1
+   "options": "Notification Template"
   },
   {
    "fieldname": "task_overdue_notification_for_employee",
    "fieldtype": "Link",
    "label": "Task Overdue Notification for Employee",
-   "options": "Notification Template",
-   "reqd": 1
+   "options": "Notification Template"
   },
   {
    "fieldname": "no_action_taken_notification_for_director",
    "fieldtype": "Link",
    "label": "No Action Taken Notification for Director",
-   "options": "Notification Template",
-   "reqd": 1
+   "options": "Notification Template"
   },
   {
    "fieldname": "task_overdue_notification_for_director",
    "fieldtype": "Link",
    "label": "Task Overdue Notification for Director",
-   "options": "Notification Template",
-   "reqd": 1
+   "options": "Notification Template"
   },
   {
    "fieldname": "project_complete_notification_for_customer",
    "fieldtype": "Link",
    "label": "Project Complete Notification For Customer",
-   "options": "Notification Template",
-   "reqd": 1
+   "options": "Notification Template"
   },
   {
    "fieldname": "task_before_due_date_notification",
    "fieldtype": "Link",
    "label": "Task Before Due Date  Notification ",
-   "options": "Notification Template",
-   "reqd": 1
+   "options": "Notification Template"
   },
   {
    "fieldname": "department_details_section",
@@ -239,8 +233,7 @@
    "fieldname": "project_before_due_date_notification",
    "fieldtype": "Link",
    "label": "Project Before Due Date Notification ",
-   "options": "Notification Template",
-   "reqd": 1
+   "options": "Notification Template"
   },
   {
    "depends_on": "is_billable",
@@ -300,7 +293,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-01-01 12:14:25.288091",
+ "modified": "2025-06-10 11:25:17.649914",
  "modified_by": "Administrator",
  "module": "One Compliance",
  "name": "Compliance Sub Category",
@@ -374,6 +367,7 @@
    "share": 1
   }
  ],
+ "row_format": "Dynamic",
  "search_fields": "sub_category,compliance_category,category_type",
  "sort_field": "modified",
  "sort_order": "DESC",

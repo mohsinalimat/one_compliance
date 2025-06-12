@@ -290,8 +290,14 @@ def send_notification_email(projects_to_notify, sub_category_doc):
 		if email:
 			recipients.add(email)
 
-	if recipients and frappe.db.exists(
-		"Email Template", sub_category_doc.renew_notification_for_customer
+	if (
+		recipients
+		and frappe.db.exists(
+			"Email Template", sub_category_doc.renew_notification_for_customer
+		)
+		and frappe.db.get_single_value(
+			"Compliance Settings", "enable_renew_notification"
+		)
 	):
 		try:
 			email_template = frappe.get_doc(
