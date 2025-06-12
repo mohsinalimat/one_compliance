@@ -55,6 +55,10 @@ frappe.ui.form.on('Compliance Sub Category', {
 			} else {
 					frm.set_df_property('internal', 'read_only', 0);
 			}
+			if (!frm.doc.is_billable) {
+				frm.set_value('rate', 0); 
+				frm.refresh_field('rate'); 
+			}
 	},
 	validate: function(frm) {
 		if (frm.doc.day) {
