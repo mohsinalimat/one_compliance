@@ -28,6 +28,7 @@ def create_custom_fields_for_app():
     create_custom_fields(get_task_custom_fields())
     create_custom_fields(get_terms_and_conditions_custom_fields())
     create_custom_fields(get_timesheet_custom_fields())
+    create_custom_fields(get_todo_custom_fields())
 
 
 def delete_custom_fields_for_app():
@@ -46,6 +47,7 @@ def delete_custom_fields_for_app():
     delete_custom_fields(get_task_custom_fields())
     delete_custom_fields(get_terms_and_conditions_custom_fields())
     delete_custom_fields(get_timesheet_custom_fields())
+    delete_custom_fields(get_todo_custom_fields())
 
 
 def create_fixtures():
@@ -14224,3 +14226,72 @@ def get_workflow_fixtures():
             "workflow_state_field": "workflow_state",
         },
     ]
+
+def get_todo_custom_fields():
+    return {
+        "ToDo": [
+            {
+                "_assign": None,
+                "_comments": None,
+                "_liked_by": None,
+                "_user_tags": None,
+                "allow_in_quick_entry": 0,
+                "allow_on_submit": 0,
+                "bold": 0,
+                "collapsible": 0,
+                "collapsible_depends_on": None,
+                "columns": 0,
+                "creation": "2025-06-18 10:30:00",
+                "default": None,
+                "depends_on": None,
+                "description": None,
+                "docstatus": 0,
+                "dt": "ToDo",
+                "fetch_from": None,
+                "fetch_if_empty": 0,
+                "fieldname": "company",
+                "fieldtype": "Link",
+                "hidden": 0,
+                "hide_border": 0,
+                "hide_days": 0,
+                "hide_seconds": 0,
+                "idx": 15,
+                "ignore_user_permissions": 0,
+                "ignore_xss_filter": 0,
+                "in_global_search": 0,
+                "in_list_view": 1,
+                "in_preview": 0,
+                "in_standard_filter": 1,
+                "insert_after": "priority",
+                "is_system_generated": 0,
+                "is_virtual": 0,
+                "label": "Company",
+                "length": 0,
+                "link_filters": None,
+                "mandatory_depends_on": None,
+                "modified": "2025-06-18 10:30:00",
+                "modified_by": "Administrator",
+                "module": None,
+                "name": "ToDo-company",
+                "no_copy": 0,
+                "non_negative": 0,
+                "options": "Company",
+                "owner": "Administrator",
+                "permlevel": 0,
+                "precision": "",
+                "print_hide": 0,
+                "print_hide_if_no_value": 0,
+                "print_width": None,
+                "read_only": 0,
+                "read_only_depends_on": None,
+                "report_hide": 0,
+                "reqd": 0,
+                "search_index": 0,
+                "show_dashboard": 0,
+                "sort_options": 0,
+                "translatable": 0,
+                "unique": 0,
+                "width": None,
+            }
+        ]
+    }
