@@ -11,3 +11,9 @@ def set_company_from_project(doc, method):
         company = frappe.db.get_value("Project", doc.reference_name, "company")
         if company:
             doc.company = company
+
+def set_company_from_event(doc, method):
+    if doc.reference_type == "Sales Order" and doc.reference_name and doc.company:
+        company = frappe.db.get_value("Sales Order", doc.reference_name, "company")
+        if company:
+            doc.company = company
