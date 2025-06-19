@@ -141,7 +141,7 @@ doc_events = {
     },
     'Project':{
         'on_update': 'one_compliance.one_compliance.doc_events.project.project_on_update',
-        'after_insert': 'one_compliance.one_compliance.doc_events.project.project_after_insert',
+        'after_insert': 'one_compliance.one_compliance.doc_events.project.project_after_insert'
     },
     'Customer':{
         'on_update':[
@@ -166,6 +166,13 @@ doc_events = {
     },
     'Payment Entry':{
         'on_submit': 'one_compliance.one_compliance.doc_events.payment_entry.payment_entry_on_submit'
+    },
+    'ToDo':{
+        'before_insert':[
+            'one_compliance.one_compliance.doc_events.todo.set_company_from_task',
+            'one_compliance.one_compliance.doc_events.todo.set_company_from_project',
+            'one_compliance.one_compliance.doc_events.todo.set_company_from_event'
+        ]
     }
 }
 

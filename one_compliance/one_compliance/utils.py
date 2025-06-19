@@ -282,18 +282,40 @@ def audit_overdue():
 		return 0
 
 def create_project_completion_todos(sales_order, project_name):
-	if frappe.db.exists("ToDo", {"reference_type":"Sales Order", "reference_name":sales_order, "description": "Project {0} is Completed, Please Proceed with the invoice".format(project_name)}):
-		return
-	accounts_users = get_users_with_role("Accounts User")
-	add_assign(
-		args={
-			"assign_to": accounts_users,
-			"doctype": "Sales Order",
-			"name": sales_order,
-			"description": "Project {0} is Completed, Please Proceed with the invoice".format(project_name),
-		},
-		ignore_permissions=True
-	)
+    project = frappe.get_doc("Project", project_name)
+    compliance_sub_category = project.get("compliance_sub_category")
+    customer = project.get("customer")
+    company = project.get("company")
+
+    # Validate necessary fields
+    if not customer:
+        frappe.throw(f"Customer is missing in Project: {project_name}")
+    if not compliance_sub_category:
+        frappe.throw(f"Compliance Sub Category is missing in Project: {project_name}")
+
+    # Construct task description
+    description = f"{compliance_sub_category} for {customer} is Completed, Please Proceed with the invoice"
+    if frappe.db.exists("ToDo", {
+        "reference_type": "Sales Order",
+        "reference_name": sales_order,
+        "description": description
+    }):
+        return
+    accounts_users = get_users_with_role("Accounts User")
+
+    # Assign the task
+    todos = add_assign(
+        args={
+            "assign_to": accounts_users,
+            "doctype": "Sales Order",
+            "name": sales_order,
+            "description": description
+        },
+        ignore_permissions=True
+    )
+
+    for todo in todos:
+        frappe.db.set_value("ToDo", todo.name, "company", company)
 
 @frappe.whitelist()
 def make_time_sheet_entry(event):
@@ -314,7 +336,7 @@ def create_timesheet(employee, activity_type, from_time, to_time):
     from_time = get_datetime(from_time)
     to_time = get_datetime(to_time)
     employee_id = frappe.get_value("Employee", {"name": employee}, "name")
-	
+
     # Check if a timesheet already exists for the employee within the given date range
     if frappe.db.exists("Timesheet", {"employee": employee_id, "start_date": from_time.date(), "end_date": to_time.date()}):
         frappe.throw(_("Timesheet already Created"))

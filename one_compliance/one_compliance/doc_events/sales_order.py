@@ -234,6 +234,9 @@ def create_sales_order_from_event(event, customer=None, sub_category=None, rate=
 		)
 		if items:
 			frappe.throw(f"Proforma Invoice is already created for this Event.")
+	event_doc = frappe.get_doc("Event", event)
+	custom_service = event_doc.custom_service or sub_category
+	custom_customer = event_doc.custom_customer or customer
 	sub_category_doc = frappe.get_doc("Compliance Sub Category", sub_category)
 	new_sales_order = frappe.new_doc("Sales Order")
 	new_sales_order.customer = customer
@@ -260,8 +263,9 @@ def create_sales_order_from_event(event, customer=None, sub_category=None, rate=
 		"assign_to": accounts_users,
 		"doctype": "Sales Order",
 		"name": new_sales_order.name,
-		"description": f"Meeting {event} is Completed, Please Proceed with the invoice"
+		"description": f"{custom_service} for {custom_customer} is Completed, Please Proceed with the Invoice"
 	})
+
 
 def so_on_cancel_custom(doc, method=None):
 	"""Set workflow state to Cancelled when cancelling sales order"""

@@ -28,6 +28,7 @@ def create_custom_fields_for_app():
     create_custom_fields(get_task_custom_fields())
     create_custom_fields(get_terms_and_conditions_custom_fields())
     create_custom_fields(get_timesheet_custom_fields())
+    create_custom_fields(get_todo_custom_fields())
 
 
 def delete_custom_fields_for_app():
@@ -46,6 +47,7 @@ def delete_custom_fields_for_app():
     delete_custom_fields(get_task_custom_fields())
     delete_custom_fields(get_terms_and_conditions_custom_fields())
     delete_custom_fields(get_timesheet_custom_fields())
+    delete_custom_fields(get_todo_custom_fields())
 
 
 def create_fixtures():
@@ -14224,3 +14226,47 @@ def get_workflow_fixtures():
             "workflow_state_field": "workflow_state",
         },
     ]
+
+def get_todo_custom_fields():
+    return {
+        "ToDo": [
+            {
+                "fieldname": "company",
+                "label": "Company",
+                "fieldtype": "Link",
+                "options": "Company",
+                "insert_after": "priority",
+                "in_list_view": 1,
+                "in_standard_filter": 1,
+                "reqd": 0,
+                "hidden": 0,
+                "read_only": 0,
+            },
+            {
+                "fieldname": "client",
+                "label": "Client",
+                "fieldtype": "Link",
+                "options": "Customer",
+                "insert_after": "reference_name",
+                "depends_on": "eval:doc.reference_type == 'Sales Order'",
+                "in_list_view": 1,
+                "in_standard_filter": 1,
+                "reqd": 0,
+                "hidden": 0,
+                "read_only": 0,
+            },
+            {
+                "fieldname": "compliance_sub_category",
+                "label": "Compliance Sub Category",
+                "fieldtype": "Link",
+                "options": "Compliance Sub Category",
+                "insert_after": "client",
+                "depends_on": "eval:doc.reference_type == 'Sales Order'",
+                "in_list_view": 1,
+                "in_standard_filter": 1,
+                "reqd": 0,
+                "hidden": 0,
+                "read_only": 0,
+            }
+        ]
+    }
