@@ -16,100 +16,149 @@ class TaskBulkAssignment(Document):
 
 	@frappe.whitelist()
 	def prepare_task_reassign(self):
-		all_tasks = self.get_all_tasks()
+		all_tasks = []
+		all_projects = []
+		if self.assignment_based_on == "Task":
+			all_tasks = self.get_all_tasks() or []
+		elif self.assignment_based_on == "Project":
+			all_projects = self.get_all_projects() or []
 
-		self.add_task_entries(all_tasks)
+		self.add_task_entries(all_tasks,all_projects)
+
 
 	@frappe.whitelist()
-	def add_task_entries(self, tasks):
+	def add_task_entries(self, tasks,projects):
 		self.set('task_reassigns', [])
+		self.set('project_reassigns', [])
 
-		for task in tasks:
-			task_reassign = self.append('task_reassigns', {})
-			task_reassign.task_id = task.get('name')
-			task_reassign.subject = task.get('subject')
-			task_reassign.project = task.get('project_name')
-			task_reassign.compliance_sub_category = task.get('compliance_sub_category')
-			task_reassign.status = task.get('status')
+		if self.assignment_based_on == "Task":
+			for task in tasks:
+				task_reassign = self.append('task_reassigns', {})
+				task_reassign.task_id = task.get('name')
+				task_reassign.subject = task.get('subject')
+				task_reassign.project = task.get('project_name')
+				task_reassign.compliance_sub_category = task.get('compliance_sub_category')
+				task_reassign.status = task.get('status')
+
+		if self.assignment_based_on == "Project":
+			for project in projects:
+				project_reassign = self.append('project_reassigns', {})
+				project_reassign.project_name = project.get('project_name')
+				project_reassign.project = project.get('name')
+				project_reassign.client = project.get('customer')
+				project_reassign.compliance_sub_category = project.get('compliance_sub_category')
+				project_reassign.status = project.get('status')
 
 	@frappe.whitelist()
 	def get_all_tasks(self, department=None, category=None, subcategory=None, assigned_to=None):
-	    filters = {}
+		filters = {}
+		filters['status'] = ['not in', ['Template', 'Cancelled', 'Completed']]
+		# Add status filter based on the selected status in Task Bulk Assignment
+		if self.status and self.status not in ['Template', 'Cancelled', 'Completed']:
+			filters['status'] = self.status
 
-	    # Add status filter based on the selected status in Task Bulk Assignment
-	    if self.status:
-	        filters['status'] = self.status
+		# Adding optional filters if provided
+		if self.department:
+			subcategories = frappe.get_all(
+				'Compliance Sub Category',
+				filters={'department': self.department},
+				fields=['name'],
+			)
+			subcategory_names = [sub['name'] for sub in subcategories]
+			filters['compliance_sub_category'] = ['in', subcategory_names]
 
-	    # Adding optional filters if provided
-	    if self.department:
-	        subcategories = frappe.get_all(
-	            'Compliance Sub Category',
-	            filters={'department': self.department},
-	            fields=['name'],
-	        )
-	        subcategory_names = [sub['name'] for sub in subcategories]
-	        filters['compliance_sub_category'] = ['in', subcategory_names]
+		if self.category:
+			subcategories = frappe.get_all(
+				'Compliance Sub Category',
+				filters={'compliance_category': self.category},
+				fields=['name'],
+			)
+			subcategory_names = [sub['name'] for sub in subcategories]
+			filters['compliance_sub_category'] = ['in', subcategory_names]
 
-	    if self.category:
-	        subcategories = frappe.get_all(
-	            'Compliance Sub Category',
-	            filters={'compliance_category': self.category},
-	            fields=['name'],
-	        )
-	        subcategory_names = [sub['name'] for sub in subcategories]
-	        filters['compliance_sub_category'] = ['in', subcategory_names]
+		if self.sub_category:
+			filters['compliance_sub_category'] = self.sub_category
 
-	    if self.sub_category:
-	        filters['compliance_sub_category'] = self.sub_category
+		if self.from_date and self.to_date:
+			filters["exp_start_date"] = ["between", [self.from_date, self.to_date]]
 
-	    if self.project:
-	        filters['project'] = self.project
+		user = frappe.session.user
+		user_roles = frappe.get_roles(user)
 
-	    if self.from_date and self.to_date:
-	        filters["exp_start_date"] = ["between", [self.from_date, self.to_date]]
+		if "Administrator" in user_roles:
+			all_tasks = frappe.get_all(
+				'Task',
+				filters=filters,
+				fields=[
+					'name',
+					'subject',
+					'project_name',
+					'compliance_sub_category',
+					'status',
+				],
+			)
+			return all_tasks
+		# **If user is an Executive, apply task filter for assigned tasks**
+		if "Executive" in user_roles:
+			assigned_tasks = frappe.get_all(
+				'ToDo',
+				filters={'allocated_to': user, 'reference_type': 'Task'},
+				fields=['reference_name']
+			)
+			assigned_task_ids = [task['reference_name'] for task in assigned_tasks]
 
-	    user = frappe.session.user
-	    user_roles = frappe.get_roles(user)
+			if assigned_task_ids:
+				filters['name'] = ['in', assigned_task_ids]
+			else:
+				return []  # No tasks assigned to this Executive
 
-	    # **If user is an Executive, apply task filter for assigned tasks**
-	    if "Executive" in user_roles:
-	        assigned_tasks = frappe.get_all(
-	            'ToDo',
-	            filters={'allocated_to': user, 'reference_type': 'Task'},
-	            fields=['reference_name']
-	        )
-	        assigned_task_ids = [task['reference_name'] for task in assigned_tasks]
+		# Fetch tasks based on filters
+		all_tasks = frappe.get_all(
+			'Task',
+			filters=filters,
+			fields=[
+				'name',
+				'subject',
+				'project_name',
+				'compliance_sub_category',
+				'status',
+			],
+		)
 
-	        if assigned_task_ids:
-	            filters['name'] = ['in', assigned_task_ids]
-	        else:
-	            return []  # No tasks assigned to this Executive
+		if self.assigned_to:
+			# Fetch tasks allocated to the specified 'assigned_to'
+			assigned_tasks = self.fetch_tasks_by_assign_from(self.assigned_to)
+			task_ids_assigned_to = [task['task_id'] for task in assigned_tasks]
 
-	    # Fetch tasks based on filters
-	    all_tasks = frappe.get_all(
-	        'Task',
-	        filters=filters,
-	        fields=[
-	            'name',
-	            'subject',
-	            'project_name',
-	            'compliance_sub_category',
-	            'status',
-	        ],
-	    )
+			# Filter the fetched tasks to only include those assigned to 'assigned_to'
+			filtered_tasks = [
+				task for task in all_tasks if task['name'] in task_ids_assigned_to
+			]
+			return filtered_tasks
 
-	    if self.assigned_to:
-	        # Fetch tasks allocated to the specified 'assigned_to'
-	        assigned_tasks = self.fetch_tasks_by_assign_from(self.assigned_to)
-	        task_ids_assigned_to = [task['task_id'] for task in assigned_tasks]
+		return all_tasks
 
-	        # Filter the fetched tasks to only include those assigned to 'assigned_to'
-	        filtered_tasks = [
-	            task for task in all_tasks if task['name'] in task_ids_assigned_to
-	        ]
-	        return filtered_tasks
-
-	    return all_tasks
+	@frappe.whitelist()
+	def get_all_projects(self):
+		filters = {}
+		if self.department:
+			filters['department'] = self.department
+		if self.sub_category:
+			filters['compliance_sub_category'] = self.sub_category
+		if self.from_date and self.to_date:
+			filters["expected_start_date"] = ["between", [self.from_date, self.to_date]]
+		filters["status"] = ["in", ["Open", "Hold", "Overdue"]]
+		return frappe.get_all(
+			'Project',
+			filters=filters,
+			fields=[
+				'name',
+				'project_name',
+				'status',
+				'customer',
+				'compliance_sub_category'
+			]
+		)
 
 
 	@frappe.whitelist()
@@ -308,19 +357,55 @@ def get_categories_by_department(doctype, txt, searchfield, start, page_len, fil
 
 
 @frappe.whitelist()
-def allocate_tasks_to_employee(selected_task_ids, selected_employee_ids, project=None):
-	for task_id in json.loads(selected_task_ids):
-		for employee_id in json.loads(selected_employee_ids):
+def allocate_tasks_to_employee(selected_task_ids, selected_employee_ids):
+	selected_task_ids = json.loads(selected_task_ids)
+	selected_employee_ids = json.loads(selected_employee_ids)
+	for task_id in selected_task_ids:
+		project = frappe.get_value('Task', task_id, 'project')
+		for employee_id in selected_employee_ids:
 			# Get the user_id from Employee doctype based on the employee_id
 			user_id = frappe.get_value('Employee', employee_id, 'user_id')
 
 			if user_id:
-				add_assignment(
-					{'doctype': 'Task', 'name': task_id, 'assign_to': [user_id]}
+				task_todo_exists = frappe.db.exists(
+					"ToDo",
+					{
+						"reference_type": "Task",
+						"reference_name": task_id,
+						"allocated_to": user_id
+					},
 				)
-				if project:
+				if not task_todo_exists:
 					add_assignment(
-						{'doctype': 'Project', 'name': project, 'assign_to': [user_id]}
+						{'doctype': 'Task', 'name': task_id, 'assign_to': [user_id]}
 					)
-
+				if project:
+					project_todo_exists = frappe.db.exists(
+						"ToDo",
+						{
+							"reference_type": "Project",
+							"reference_name": project,
+							"allocated_to": user_id
+						},
+					)
+					if not project_todo_exists:
+						add_assignment(
+							{'doctype': 'Project', 'name': project, 'assign_to': [user_id]}
+						)
 	return 'Tasks allocated successfully'
+
+@frappe.whitelist()
+def get_tasks_from_projects(projects):
+    if isinstance(projects, str):
+        projects = json.loads(projects)
+    tasks = frappe.get_all(
+        "Task",
+        filters={
+            "project": ["in", projects],
+            "status": ["not in", ["Completed", "Cancelled","Template"]],
+        },
+        fields=["name"]
+    )
+    return [task.name for task in tasks]
+
+
