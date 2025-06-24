@@ -2,6 +2,11 @@
 // For license information, please see license.txt
 
 frappe.query_reports["Sales Order Receivable"] = {
+    onload: function (report) {
+          report.page.add_inner_button("Sales Order Receivable Summary", function () {
+              frappe.set_route("query-report", "Sales Order Receivable Summary");
+          });
+      },
     filters: [
         {
             fieldname: "company",
