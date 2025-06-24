@@ -213,7 +213,9 @@ class TaskBulkAssignment(Document):
 
 	@frappe.whitelist()
 	def get_employee_list(self, department=None):
-		filters = {}
+		filters = {
+			 "status": "Active"
+		}
 
 		# Check if a department is specified
 		if self.department:
@@ -407,5 +409,3 @@ def get_tasks_from_projects(projects):
         fields=["name"]
     )
     return [task.name for task in tasks]
-
-
