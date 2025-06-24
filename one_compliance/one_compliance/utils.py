@@ -283,6 +283,10 @@ def audit_overdue():
 
 def create_project_completion_todos(sales_order, project_name):
     project = frappe.get_doc("Project", project_name)
+
+    if project.get("custom_is_internal"):
+        return
+
     compliance_sub_category = project.get("compliance_sub_category")
     customer = project.get("customer")
     company = project.get("company")
@@ -301,6 +305,7 @@ def create_project_completion_todos(sales_order, project_name):
         "description": description
     }):
         return
+
     accounts_users = get_users_with_role("Accounts User")
 
     # Assign the task
