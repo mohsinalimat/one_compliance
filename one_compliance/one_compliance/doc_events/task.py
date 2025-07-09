@@ -586,3 +586,78 @@ def get_company_income_account(company, compliance_sub_category):
 		)
 	if income_result:
 		return income_result[0].default_income_account
+
+def set_task_readiness_flow_on_creation(doc, method=None):
+    if not doc.compliance_sub_category:
+        return
+
+    compliance_subcategory = frappe.get_doc("Compliance Sub Category", doc.compliance_sub_category)
+    if not compliance_subcategory.project_template:
+        return
+
+    project_template = frappe.get_doc("Project Template", compliance_subcategory.project_template)
+    if not project_template.enable_task_readiness_flow:
+        return
+
+    # Fetch ordered task subjects from project template
+    template_task_subjects = [task.subject for task in project_template.tasks]
+
+    if not template_task_subjects:
+        return
+
+    # If this task's subject matches the first in the template
+    if doc.subject == template_task_subjects[0]:
+        # Find the earliest task with this subject in this project
+        earliest_task = frappe.get_all(
+            "Task",
+            filters={
+                "project": doc.project,
+                "subject": doc.subject
+            },
+            fields=["name"],
+            order_by="creation asc",
+            limit=1
+        )
+
+        # If this task is the earliest one, set readiness_status = Ready
+        if earliest_task and earliest_task[0].name == doc.name:
+            frappe.db.set_value("Task", doc.name, "readiness_status", "Ready")
+
+def on_task_update(doc, method=None):
+    if doc.status != "Completed" or doc.readiness_status != "Ready":
+        return
+
+    project = frappe.get_doc("Project", doc.project)
+    if not project.compliance_sub_category:
+        return
+
+    compliance_subcategory = frappe.get_doc("Compliance Sub Category", project.compliance_sub_category)
+    if not compliance_subcategory.project_template:
+        return
+
+    project_template = frappe.get_doc("Project Template", compliance_subcategory.project_template)
+    template_task_subjects = [task.subject for task in project_template.tasks]
+
+    try:
+        current_index = template_task_subjects.index(doc.subject)
+        if current_index + 1 < len(template_task_subjects):
+            next_subject = template_task_subjects[current_index + 1]
+
+            next_task = frappe.get_all(
+                "Task",
+                filters={
+                    "project": doc.project,
+                    "subject": next_subject,
+                    "readiness_status": ["!=", "Ready"],
+                    "status": ["not in", ["Completed", "Cancelled"]]
+                },
+                fields=["name", "readiness_status"],
+                order_by="creation asc",
+                limit=1
+            )
+
+            if next_task:
+                frappe.db.set_value("Task", next_task[0].name, "readiness_status", "Ready")
+
+    except ValueError:
+        pass
