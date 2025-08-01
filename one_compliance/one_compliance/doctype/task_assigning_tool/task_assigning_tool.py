@@ -2,12 +2,12 @@
 # For license information, please see license.txt
 
 import json
+from typing import List, Set, Tuple, Optional
 
 import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.utils import now
-from one_compliance.one_compliance.utils import add_custom
 
 
 class TaskAssigningTool(Document):
@@ -16,106 +16,141 @@ class TaskAssigningTool(Document):
 
 @frappe.whitelist()
 def get_users_by_department(doctype, txt, searchfield, start, page_len, filters):
-
+    """Get users filtered by department with search functionality."""
     exclude_email = filters.get("exclude_email")
-    # Query the Employee doctype to filter users by department
-    user_ids = frappe.get_all(
+    department = filters.get("department")
+
+    if not department:
+        return []
+
+    # Get user IDs from employees in the department
+    user_ids = frappe.db.get_list(
         "Employee",
-        filters={"department": filters.get("department")},
+        filters={"department": department},
+        fields=["user_id"],
         pluck="user_id"
     )
 
-    # Filter out None and the excluded email
+    # Filter out None values and excluded email
     user_ids = [uid for uid in user_ids if uid and uid != exclude_email]
 
     if not user_ids:
         return []
 
-    #  Add search filter using 'txt'
+    search_filters = {"name": ["in", user_ids], "enabled": 1}
+    or_filters = []
+    if txt:
+        or_filters = [
+            ["name", "like", f"%{txt}%"],
+            ["full_name", "like", f"%{txt}%"]
+        ]
+
     users = frappe.get_all(
         "User",
-        filters={"name": ["in", user_ids], "enabled": 1},
-        or_filters=[["name", "like", f"%{txt}%"], ["full_name", "like", f"%{txt}%"]],
+        filters=search_filters,
+        or_filters=or_filters or None,
         fields=["name", "full_name"],
         start=start,
         page_length=page_len,
     )
 
-    # Build result list
     return [(user["name"], user["full_name"]) for user in users]
 
 
 @frappe.whitelist()
-def reassign_tasks(assign_from, assign_to, selected_tasks_json):
-    
+def reassign_tasks(assign_from: str, assign_to: str, selected_tasks_json: str) -> str:
+    """Reassign tasks from one user to another and handle project assignments."""
     selected_tasks = frappe.parse_json(selected_tasks_json)
 
-    assigned_projects = set()  
-    projects_to_check = set()
+    if not selected_tasks:
+        return "No tasks selected for reassignment"
 
+    assigned_projects: Set[str] = set()
+    projects_to_check: Set[str] = set()
+
+    # Process all tasks
     for task_id in selected_tasks:
-
         task_doc = frappe.get_doc('Task', task_id)
 
+        # Update task assignment
         frappe.db.set_value('Task', task_id, 'assigned_to', assign_to)
         
+        # Handle project assignment if task has a project
         if task_doc.project:
             projects_to_check.add(task_doc.project)
-            
-            if task_doc.project not in assigned_projects:
-                try:
-                    existing_assignment = frappe.db.exists('ToDo', {
-                        'reference_type': 'Project',
-                        'reference_name': task_doc.project,
-                        'allocated_to': assign_to,
-                        'status': 'Open'
-                    })
-                    
-                    if not existing_assignment:
-                        frappe.desk.form.assign_to.add(args={
-                            'assign_to': json.dumps([assign_to]),
-                            'doctype': 'Project',
-                            'name': task_doc.project,
-                            'description': f'Project assigned due to task reassignment from {assign_from}'
-                        })
-                        
-                    assigned_projects.add(task_doc.project)
-                    
-                except Exception as e:
-                    frappe.log_error(f"Error assigning project {task_doc.project} to user {assign_to}: {str(e)}")
+            _assign_project_if_needed(task_doc.project, assign_to, assign_from, assigned_projects)
 
-        # Get the reference name of the 'ToDo' document associated with the selected task
-        old_todo_reference = frappe.get_value('ToDo', {
-            'reference_name': task_id, 
-            'reference_type': 'Task', 
-            'status': ['!=', 'Closed'], 
-            'allocated_to': assign_from
-        }, 'name')
+        # Handle ToDo reassignment
+        _reassign_todo_item(task_id, assign_from, assign_to)
 
-        if old_todo_reference:
-            add_custom({
-                'assign_to': json.dumps([assign_to]),
-                'doctype': 'Task',
-                'name': task_id,
-                'description': f"Task reassigned from {assign_from}",
-                'assigned_by': assign_from
-            })
-
-            frappe.db.set_value('ToDo', old_todo_reference, 'status', 'Closed', update_modified=False)
-
-
+    # Clean up project assignments for users with no remaining tasks
     for project_name in projects_to_check:
-        remove_user_from_project_if_no_tasks(project_name, assign_from)
+        _remove_user_from_project_if_no_tasks(project_name, assign_from)
 
     frappe.db.commit()
     return "Tasks reassigned successfully"
 
-def remove_user_from_project_if_no_tasks(project_name, user):
-    """
-    Remove user from project assignment if they have no remaining open tasks in the project
-    """
+
+def _assign_project_if_needed(project_name: str, assign_to: str, assign_from: str, assigned_projects: Set[str]) -> None:
+    """Assign project to user if not already assigned."""
+    if project_name in assigned_projects:
+        return
+
     try:
-        # Check if user has any remaining open tasks in this project
+        # Check if project is already assigned to the user
+        existing_assignment = frappe.db.exists('ToDo', {
+            'reference_type': 'Project',
+            'reference_name': project_name,
+            'allocated_to': assign_to,
+            'status': 'Open'
+        })
+
+        if not existing_assignment:
+            frappe.desk.form.assign_to.add(args={
+                'assign_to': json.dumps([assign_to]),
+                'doctype': 'Project',
+                'name': project_name,
+                'description': f'Project assigned due to task reassignment from {assign_from}'
+            })
+
+        assigned_projects.add(project_name)
+
+    except Exception as e:
+        frappe.log_error(f"Error assigning project {project_name} to user {assign_to}: {str(e)}")
+
+
+def _reassign_todo_item(task_id: str, assign_from: str, assign_to: str) -> None:
+    """Reassign ToDo item for a task."""
+    # Find existing ToDo for the task
+    old_todo_name = frappe.db.get_value('ToDo', {
+        'reference_name': task_id,
+        'reference_type': 'Task',
+        'status': ['!=', 'Closed'],
+        'allocated_to': assign_from
+    }, 'name')
+
+    if old_todo_name:
+        # Create new ToDo for the assignee
+        frappe.get_doc({
+            'doctype': 'ToDo',
+            'owner': assign_to,
+            'allocated_to': assign_to,
+            'assigned_by': assign_from,
+            'reference_type': 'Task',
+            'reference_name': task_id,
+            'description': f"Task reassigned from {assign_from}",
+            'status': 'Open',
+            'date': now()
+        }).insert(ignore_permissions=True)
+
+        # Close old ToDo
+        frappe.db.set_value('ToDo', old_todo_name, 'status', 'Closed')
+
+
+def _remove_user_from_project_if_no_tasks(project_name: str, user: str) -> None:
+    """Remove user from project assignment if they have no remaining open tasks."""
+    try:
+        # Check remaining open tasks for user in project
         remaining_tasks = frappe.db.count('Task', {
             'project': project_name,
             'assigned_to': user,
@@ -123,104 +158,87 @@ def remove_user_from_project_if_no_tasks(project_name, user):
         })
         
         if remaining_tasks == 0:
-            # Check if user has project assignment
-            project_todo = frappe.db.get_value('ToDo', {
+            # Close project assignment if exists
+            project_todo_name = frappe.db.get_value('ToDo', {
                 'reference_type': 'Project',
                 'reference_name': project_name,
                 'allocated_to': user,
                 'status': 'Open'
             }, 'name')
             
-            if project_todo:
-                frappe.db.set_value('ToDo', project_todo, 'status', 'Closed', update_modified=False)
+            if project_todo_name:
+                frappe.db.set_value('ToDo', project_todo_name, 'status', 'Closed')
                 
-            
     except Exception as e:
         frappe.log_error(f"Error removing project {project_name} from user {user}: {str(e)}")
 
 
+# Remove the duplicate function definition
+remove_user_from_project_if_no_tasks = _remove_user_from_project_if_no_tasks
+
+
 @frappe.whitelist()
-def get_compliance_categories_for_user(
-    doctype, txt, searchfield, start, page_len, filters
-):
+def get_compliance_categories_for_user(doctype, txt, searchfield, start, page_len, filters):
+    """Get compliance categories for a user based on their department."""
     user_id = filters.get("user_id")
 
-    # Find the Employee based on the user_id
-    employee = frappe.get_doc("Employee", {"user_id": user_id})
+    if not user_id:
+        return []
 
-    if employee:
-        # Get the department of the employee
-        department = employee.department
+    # Get employee department efficiently
+    department = frappe.db.get_value("Employee", {"user_id": user_id}, "department")
 
-        # Query the Compliance Category DocType
-        compliance_categories = frappe.get_all(
-            "Compliance Category",
-            filters={"department": department},
-            fields=["name", "department"],
-        )
+    if not department:
+        return []
 
-        category_names = []  # Initialize an empty list to store user information
+    # Get compliance categories for the department
+    compliance_categories = frappe.get_all(
+        "Compliance Category",
+        filters={"department": department},
+        fields=["name", "department"],
+    )
 
-        for category in compliance_categories:
-            name = category["name"]
-            department = category["department"]
-
-            category_names.append(
-                (name, department)
-            )  # Add email and full name as a tuple to the list
-
-        return category_names  # Return the list of email IDs and full names as tuples
-    return []
+    return [(category["name"], category["department"]) for category in compliance_categories]
 
 
 @frappe.whitelist()
-def get_compliance_executives(compliance_category):
-    child_table_data = frappe.get_all(
+def get_compliance_executives(compliance_category: str) -> List[dict]:
+    """Get compliance executives for a specific category."""
+    return frappe.get_all(
         "Compliance Executive",
         filters={"parent": compliance_category},
         fields=["employee", "designation", "employee_name"],
     )
-    return child_table_data
 
 
 @frappe.whitelist()
-def add_employee_to_compliance_executive(employee, compliance_category):
+def add_employee_to_compliance_executive(employee: str, compliance_category: str) -> bool:
+    """Add an employee to compliance executive table."""
     try:
-        # Check if the employee and compliance category exist
+        # Get employee and compliance category documents
         employee_doc = frappe.get_doc("Employee", {"user_id": employee})
-        compliance_category_doc = frappe.get_doc(
-            "Compliance Category", compliance_category
-        )
+        compliance_category_doc = frappe.get_doc("Compliance Category", compliance_category)
 
-        if employee_doc and compliance_category_doc:
-            # Check if the employee is already in the Compliance Executive table for the category
-            existing_executive = None
-            for executive in compliance_category_doc.compliance_executive:
-                if executive.employee == employee_doc.name:
-                    existing_executive = executive
-                    break
+        # Check if employee already exists in the table
+        existing_employee_names = {exec.employee for exec in compliance_category_doc.compliance_executive}
 
-            if not existing_executive:
-                # Create a new "Compliance Executive" document and set its fields
-                executive = frappe.new_doc("Compliance Executive")
-                executive.employee = employee_doc.name
-                executive.designation = employee_doc.designation
-                executive.employee_name = employee_doc.employee_name
+        if employee_doc.name in existing_employee_names:
+            frappe.msgprint("Employee is already existing")
+            return False
 
-                # Append the new executive to the Compliance Executive table
-                compliance_category_doc.append("compliance_executive", executive)
+        # Add new executive
+        executive = frappe.new_doc("Compliance Executive")
+        executive.employee = employee_doc.name
+        executive.designation = employee_doc.designation
+        executive.employee_name = employee_doc.employee_name
 
-                # Save the Compliance Category document with the updated table
-                compliance_category_doc.save()
+        compliance_category_doc.append("compliance_executive", executive)
+        compliance_category_doc.save()
+        frappe.db.commit()
 
-                frappe.db.commit()
-                return True
-            else:
-                frappe.msgprint("Employee is already existing")
-                return False  # Employee is already in the table
-        else:
-            return False  # Employee or Compliance Category does not exist
-    except Exception:
+        return True
+
+    except Exception as e:
         frappe.log_error(
             frappe.get_traceback(),
             _("Error in adding employee to Compliance Executive"),
@@ -229,78 +247,83 @@ def add_employee_to_compliance_executive(employee, compliance_category):
 
 
 @frappe.whitelist()
-def get_available_subcategories(compliance_category, employee):
-    # Query the database to retrieve subcategories related to the selected category
+def get_available_subcategories(compliance_category: str, employee: str) -> List[dict]:
+    """Get available subcategories with their assignment status for an employee."""
+    # Get all subcategories for the category
     subcategories = frappe.get_all(
         "Compliance Sub Category",
         filters={"compliance_category": compliance_category},
         fields=["name"],
     )
 
-    # Check if the employee exists in the compliance executive of each subcategory
+    if not subcategories:
+        return []
+
+    # Get employee document once
     employee_doc = frappe.get_doc("Employee", {"user_id": employee})
+
+    # Get all compliance executives for these subcategories in one query
+    subcategory_names = [sub["name"] for sub in subcategories]
+    executives = frappe.get_all(
+        "Compliance Executive",
+        filters={"parent": ["in", subcategory_names], "employee": employee_doc.name},
+        fields=["parent"],
+        pluck="parent"
+    )
+
+    assigned_subcategories = set(executives)
+
+    # Add status to each subcategory
     for subcategory in subcategories:
-        compliance_subcategory_doc = frappe.get_doc(
-            "Compliance Sub Category", subcategory["name"]
-        )
-
-        is_added = False
-        for executive in compliance_subcategory_doc.compliance_executive:
-            if executive.employee == employee_doc.name:
-                is_added = True
-                break
-
-        subcategory["status"] = "added" if is_added else "not added"
+        subcategory["status"] = "added" if subcategory["name"] in assigned_subcategories else "not added"
 
     return subcategories
 
 
 @frappe.whitelist()
-def add_to_subcategories(employee, compliance_category, selected_subcategories):
-
+def add_to_subcategories(employee: str, compliance_category: str, selected_subcategories: str) -> bool:
+    """Add employee to selected subcategories."""
     try:
-        # Check if the employee and compliance category exist
+        # Parse and validate inputs
         employee_doc = frappe.get_doc("Employee", {"user_id": employee})
-        compliance_category_doc = frappe.get_doc(
-            "Compliance Category", compliance_category
-        )
         compliance_subcategories = json.loads(selected_subcategories)
 
-        if employee_doc and compliance_category_doc:
-            for subcategory in compliance_subcategories:
-
-                compliance_subcategory_doc = frappe.get_doc(
-                    "Compliance Sub Category", {"name": subcategory}
-                )
-
-                if compliance_subcategory_doc:
-
-                    existing_executive = None
-                    for executive in compliance_subcategory_doc.compliance_executive:
-                        if executive.employee == employee_doc.name:
-                            existing_executive = executive
-                            break
-
-                    if not existing_executive:
-                        # Create a new "Compliance Executive" document and set its fields
-                        executive = frappe.new_doc("Compliance Executive")
-                        executive.employee = employee_doc.name
-                        executive.designation = employee_doc.designation
-                        executive.employee_name = employee_doc.employee_name
-
-                        # Append the new executive to the Compliance Executive table
-                        compliance_subcategory_doc.append(
-                            "compliance_executive", executive
-                        )
-
-                        # Save the Compliance Sub Category document with the updated table
-                        compliance_subcategory_doc.save()
-
-            frappe.db.commit()
-            return True
-        else:
+        if not compliance_subcategories:
             return False
-    except Exception:
+
+        # Get existing assignments to avoid duplicates
+        existing_assignments = frappe.get_all(
+            "Compliance Executive",
+            filters={
+                "parent": ["in", compliance_subcategories],
+                "employee": employee_doc.name
+            },
+            fields=["parent"],
+            pluck="parent"
+        )
+
+        existing_set = set(existing_assignments)
+
+        # Process each subcategory
+        for subcategory_name in compliance_subcategories:
+            if subcategory_name in existing_set:
+                continue
+
+            compliance_subcategory_doc = frappe.get_doc("Compliance Sub Category", subcategory_name)
+
+            # Create and append new executive
+            executive = frappe.new_doc("Compliance Executive")
+            executive.employee = employee_doc.name
+            executive.designation = employee_doc.designation
+            executive.employee_name = employee_doc.employee_name
+
+            compliance_subcategory_doc.append("compliance_executive", executive)
+            compliance_subcategory_doc.save()
+
+        frappe.db.commit()
+        return True
+
+    except Exception as e:
         frappe.log_error(
             frappe.get_traceback(),
             _("Error in adding employee to Compliance Sub Categories"),
@@ -309,12 +332,10 @@ def add_to_subcategories(employee, compliance_category, selected_subcategories):
 
 
 @frappe.whitelist()
-def get_tasks_for_user(assign_from):
-    """
-    fetch tasks for this user
-    """
+def get_tasks_for_user(assign_from: str) -> List[dict]:
+    """Fetch tasks for a specific user."""
 
-    task_details = frappe.db.get_all(
+    return frappe.db.get_all(
         "Task",
         filters={
             "_assign": ["like", f"%{assign_from}%"],
@@ -322,5 +343,3 @@ def get_tasks_for_user(assign_from):
         },
         fields=["name as task_id", "subject", "project"],
     )
-
-    return task_details
