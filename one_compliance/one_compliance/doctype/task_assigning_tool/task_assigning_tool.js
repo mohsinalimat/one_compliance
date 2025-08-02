@@ -2,22 +2,22 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on('Task Assigning Tool', {
-	refresh: function(frm) {
+    refresh: function(frm) {
     frm.disable_save();
-		frm.toggle_display('add_to_subcategories', false);
-	},
-	setup: function(frm) {
+        frm.toggle_display('add_to_subcategories', false);
+    },
+    setup: function(frm) {
     set_filters(frm);
   },
-	assign_from: function(frm) {
-		if (frm.doc.assign_from) {
-			prepare_task_reassign(frm);
-		}
-		else {
-			clear_values(frm);
-		}
-	},
-	assign: function(frm) {
+    assign_from: function(frm) {
+        if (frm.doc.assign_from) {
+            prepare_task_reassign(frm);
+        }
+        else {
+            clear_values(frm);
+        }
+    },
+    assign: function(frm) {
         // Get the selected 'assign_from' and 'assign_to' values
         var assignFrom = frm.doc.assign_from;
         var assignTo = frm.doc.assign_to;
@@ -28,23 +28,24 @@ frappe.ui.form.on('Task Assigning Tool', {
         }
 
         // Get the selected tasks from the 'task_reassigns' table
-        var selectedTasks = frm.doc.task_reassigns || [];
+        var selectedRows = frm.get_selected().task_reassigns || [];
 
-        if (selectedTasks.length === 0) {
-            frappe.msgprint('Please select tasks to reassign.');
-            return;
-        }
+        if (selectedRows.length === 0) {
+        frappe.msgprint('Please select tasks to reassign.');
+        return;
+    }
 
-        var selectedTaskIds = selectedTasks.map(function(task) {
-            return task.task_id;
-        });
+        var selectedTaskIds = selectedRows.map(function(rowName) {
+            var row = frm.doc.task_reassigns.find(r => r.name === rowName);
+            return row && row.task_id;
+        }).filter(Boolean);    
 
         frappe.call({
             method: 'one_compliance.one_compliance.doctype.task_assigning_tool.task_assigning_tool.reassign_tasks',
             args: {
                 assign_from: assignFrom,
                 assign_to: assignTo,
-                selected_tasks_json: selectedTaskIds
+                selected_tasks_json: JSON.stringify(selectedTaskIds)
             },
             freeze: true,
             freeze_message: 'Reassigning tasks...',
@@ -59,49 +60,50 @@ frappe.ui.form.on('Task Assigning Tool', {
             }
         });
     },
-		compliance_categories: function(frm) {
-			 // Get the selected Compliance Category
-			 var selectedCategory = frm.doc.compliance_categories;
+    
+        compliance_categories: function(frm) {
+             // Get the selected Compliance Category
+             var selectedCategory = frm.doc.compliance_categories;
 
-			 if (selectedCategory) {
-					 // Make an AJAX call to the server to fetch executives
-					 frappe.call({
-							 method: 'one_compliance.one_compliance.doctype.task_assigning_tool.task_assigning_tool.get_compliance_executives',
-							 args: { compliance_category: selectedCategory },
-							 callback: function(response) {
-									 if (response.message) {
-											 // Clear the existing "Compliance Executives" table
-											 frm.clear_table('compliance_executives');
+             if (selectedCategory) {
+                     // Make an AJAX call to the server to fetch executives
+                     frappe.call({
+                             method: 'one_compliance.one_compliance.doctype.task_assigning_tool.task_assigning_tool.get_compliance_executives',
+                             args: { compliance_category: selectedCategory },
+                             callback: function(response) {
+                                     if (response.message) {
+                                             // Clear the existing "Compliance Executives" table
+                                             frm.clear_table('compliance_executives');
 
-											 // Iterate through the response and add records to the table
-											 response.message.forEach(function(executive) {
-												 var row = frappe.model.add_child(frm.doc, 'Compliance Executives', 'compliance_executives');
-													row.employee = executive.employee;
-													row.designation = executive.designation;
-													row.employee_name = executive.employee_name;
-													// Set other child table fields as needed
-											 });
+                                             // Iterate through the response and add records to the table
+                                             response.message.forEach(function(executive) {
+                                                 var row = frappe.model.add_child(frm.doc, 'Compliance Executives', 'compliance_executives');
+                                                    row.employee = executive.employee;
+                                                    row.designation = executive.designation;
+                                                    row.employee_name = executive.employee_name;
+                                                    // Set other child table fields as needed
+                                             });
 
-											 frm.refresh_field('compliance_executives');
-									 }
-									 var selectedEmployee = frm.doc.employee;
+                                             frm.refresh_field('compliance_executives');
+                                     }
+                                     var selectedEmployee = frm.doc.employee;
 
-									 // Fetch the name of the employee using user_id
-									 fetchEmployeeName(selectedEmployee, function(employeeName) {
+                                     // Fetch the name of the employee using user_id
+                                     fetchEmployeeName(selectedEmployee, function(employeeName) {
 
-									    // Check if the selected employee is in Compliance Executives and show the button
-									    var isEmployeeInExecutives = response.message.some(function(executive) {
-									        return executive.employee === employeeName;
-									    });
+                                        // Check if the selected employee is in Compliance Executives and show the button
+                                        var isEmployeeInExecutives = response.message.some(function(executive) {
+                                            return executive.employee === employeeName;
+                                        });
 
-									    frm.toggle_display('add_to_subcategories', isEmployeeInExecutives);
-											frm.toggle_display('add_employee', !isEmployeeInExecutives);
-									});
-							 }
-					 });
-			 }
-	 },
-	 add_employee: function(frm) {
+                                        frm.toggle_display('add_to_subcategories', isEmployeeInExecutives);
+                                            frm.toggle_display('add_employee', !isEmployeeInExecutives);
+                                    });
+                             }
+                     });
+             }
+     },
+     add_employee: function(frm) {
         var selectedEmployee = frm.doc.employee;
         var selectedCategory = frm.doc.compliance_categories;
 
@@ -116,7 +118,7 @@ frappe.ui.form.on('Task Assigning Tool', {
                 callback: function(response) {
                     if (response.message) {
                         frappe.msgprint('Employee added to Compliance Category.');
-												frm.events.compliance_categories(frm);
+                                                frm.events.compliance_categories(frm);
 
                     } else {
                         frappe.msgprint('Error adding employee.');
@@ -127,37 +129,40 @@ frappe.ui.form.on('Task Assigning Tool', {
             frappe.msgprint('Please select an employee and a Compliance Category.');
         }
     },
-		add_to_subcategories: function(frm) {
+        add_to_subcategories: function(frm) {
         get_available_subcategories(frm);
     }
 });
 
 let clear_values = function (frm) {
-	// clear field values
-	frm.clear_table('task_reassigns');
-	frm.refresh_field('task_reassigns');
-	frm.clear_table('compliance_executives');
-	frm.refresh_field('compliance_executives');
+    // clear field values
+    frm.clear_table('task_reassigns');
+    frm.refresh_field('task_reassigns');
+    frm.clear_table('compliance_executives');
+    frm.refresh_field('compliance_executives');
 }
 
 let set_filters = function(frm){
-	frm.set_query('assign_from', function() {
-			return {
-					query: 'one_compliance.one_compliance.doctype.task_assigning_tool.task_assigning_tool.get_users_by_department',
-					filters: {
-							department: frm.doc.department
-					}
-			};
-	});
-	frm.set_query('assign_to', function() {
-			return {
-					query: 'one_compliance.one_compliance.doctype.task_assigning_tool.task_assigning_tool.get_users_by_department',
-					filters: {
-							department: frm.doc.department
-					}
-			};
-	});
-	frm.set_query('compliance_categories', function() {
+    frm.set_query('assign_from', function() {
+            return {
+                    query: 'one_compliance.one_compliance.doctype.task_assigning_tool.task_assigning_tool.get_users_by_department',
+                    filters: {
+                            department: frm.doc.department,
+                            exclude_email: frm.doc.assign_from
+                    }
+            };
+    });
+    frm.set_query('assign_to', function() {
+            return {
+                    query: 'one_compliance.one_compliance.doctype.task_assigning_tool.task_assigning_tool.get_users_by_department',
+                    filters: {
+                            department: frm.doc.department,
+                            exclude_email: frm.doc.assign_from
+
+                    }
+            };
+    });
+    frm.set_query('compliance_categories', function() {
     return {
         query: 'one_compliance.one_compliance.doctype.task_assigning_tool.task_assigning_tool.get_compliance_categories_for_user',
         filters: {
@@ -165,6 +170,13 @@ let set_filters = function(frm){
         }
     };
 });
+frm.fields_dict.task_reassigns.grid.get_field("task_id").get_query = function () {
+    return {
+        filters: {
+            status: ["not in", ["Completed", "Cancelled", "Template"]]
+        }
+    };
+};
 
 }
 
@@ -206,13 +218,13 @@ function get_available_subcategories(frm) {
             method: 'one_compliance.one_compliance.doctype.task_assigning_tool.task_assigning_tool.get_available_subcategories',
             args: {
                 compliance_category: frm.doc.compliance_categories,
-								employee: frm.doc.employee
+                                employee: frm.doc.employee
             },
             freeze: true,
             freeze_message: __("Preparing Subcategory Reassignment..."),
             callback: (r) => {
                 if (r && r.message) {
-										console.log(r.message);
+                                        console.log(r.message);
                     const subcategories = r.message;
                     const subcategoryOptions = subcategories.map(subcategory => ({
 
