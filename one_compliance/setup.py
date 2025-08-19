@@ -4777,7 +4777,7 @@ def get_project_template_task_custom_fields():
                 "in_list_view": 1,
                 "in_preview": 0,
                 "in_standard_filter": 0,
-                "insert_after": "custom_task_duration",
+                "insert_after": "task_weightage",
                 "is_system_generated": 0,
                 "is_virtual": 0,
                 "label": "Type",
@@ -4869,6 +4869,13 @@ def get_project_template_task_custom_fields():
                 "unique": 0,
                 "width": None,
             },
+            {
+				"fieldname": "task_weightage",
+				"fieldtype": "Select",
+				"label": "Task Weightage",
+				"options": "\n0\n1\n2\n3\n4\n5\n",
+				"insert_after": "custom_task_duration"
+			}
         ]
     }
 
