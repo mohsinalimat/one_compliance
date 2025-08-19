@@ -162,6 +162,7 @@ def convert_project_to_premium(project):
             task.subject = premium_task.subject
             task.project = project_doc.name
             task.expected_time = premium_task.task_duration or 0
+            task.task_weightage = premium_task.task_weightage or 0
             task.save()
 
         project_doc.is_premium = 1
