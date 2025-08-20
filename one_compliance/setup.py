@@ -1,6 +1,5 @@
 import frappe
-from frappe.custom.doctype.custom_field.custom_field import \
-    create_custom_fields
+from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 
 
 def after_migrate():
@@ -4882,7 +4881,8 @@ def get_project_template_task_custom_fields():
 				"fieldtype": "Select",
 				"label": "Task Weightage",
 				"options": "\n0\n1\n2\n3\n4\n5\n",
-				"insert_after": "custom_task_duration"
+				"insert_after": "custom_task_duration",
+				"in_list_view": 1
 			}
         ]
     }
